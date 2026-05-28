@@ -54,7 +54,7 @@ public class User {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    @Enumerated
+    @Enumerated(EnumType.STRING)
     private Role role;
 
 }
