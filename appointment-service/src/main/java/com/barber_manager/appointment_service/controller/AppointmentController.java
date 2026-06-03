@@ -2,9 +2,11 @@ package com.barber_manager.appointment_service.controller;
 
 import com.barber_manager.appointment_service.dto.AppointmentResponse;
 import com.barber_manager.appointment_service.dto.CreateAppointmentRequest;
+import com.barber_manager.appointment_service.dto.StaffAppointmentResponse;
 import com.barber_manager.appointment_service.dto.UpdateAppointmentStatusRequest;
 import com.barber_manager.appointment_service.enums.AppointmentStatus;
 import com.barber_manager.appointment_service.service.AppointmentService;
+import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,7 +29,7 @@ public class AppointmentController {
     @PostMapping
     public ResponseEntity<AppointmentResponse> create(
             @Valid @RequestBody CreateAppointmentRequest request
-    ) {
+    ) throws MessagingException {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));
     }
 
@@ -40,14 +42,14 @@ public class AppointmentController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<AppointmentResponse> details(
+    public ResponseEntity<StaffAppointmentResponse> details(
             @PathVariable Long id
     ) {
-        return ResponseEntity.ok(service.getDetails(id));
+        return ResponseEntity.ok(service.getStaffDetails(id));
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<AppointmentResponse> updateStatus(
+    public ResponseEntity<StaffAppointmentResponse> updateStatus(
             @PathVariable Long id,
             @Valid @RequestBody UpdateAppointmentStatusRequest request
     ) {

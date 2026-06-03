@@ -3,11 +3,14 @@ package com.barber_manager.user_service.service;
 import com.barber_manager.user_service.dto.request.CreateUserRequest;
 import com.barber_manager.user_service.dto.request.RegisterRequestDto;
 import com.barber_manager.user_service.dto.request.UpdateUserRequest;
+import com.barber_manager.user_service.dto.response.BarberResponseDto;
 import com.barber_manager.user_service.dto.response.UserCredentialDto;
 import com.barber_manager.user_service.dto.response.UserResponseDto;
 import com.barber_manager.user_service.entity.User;
+import com.barber_manager.user_service.enums.Role;
 import com.barber_manager.user_service.exceptions.UserAlreadyExistsException;
 import com.barber_manager.user_service.exceptions.UserNotFoundException;
+import com.barber_manager.user_service.exceptions.UserServiceLogicException;
 import com.barber_manager.user_service.mapper.UserMapper;
 import com.barber_manager.user_service.repository.UserRepository;
 import jakarta.transaction.Transactional;
@@ -16,7 +19,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +34,13 @@ public class UserService {
                 .map(userMapper::toUserResponseDto)
                 .toList();
     }
+
+    public List<BarberResponseDto> getBarbers() {
+        return userRepository.findAllByRoleOrderByFirstNameAscLastNameAsc(Role.BARBER).stream()
+                .map(user -> new BarberResponseDto(user.getId(), user.getFirstName(), user.getLastName()))
+                .toList();
+    }
+
     public UserResponseDto getUserById(Long id) throws UserNotFoundException {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User does not exist with provided ID."));
@@ -70,6 +79,9 @@ public class UserService {
     }
 
     public UserCredentialDto createUserFromAuth(RegisterRequestDto request){
+        if (request.role() != Role.BARBER && request.role() != Role.ADMIN) {
+            throw new UserServiceLogicException("Only barber and administrator accounts can be created.");
+        }
         if (userRepository.existsByEmail(request.email())){
             throw new UserAlreadyExistsException("User already exists with provided email.");
         }
@@ -79,6 +91,7 @@ public class UserService {
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
         user.setPhoneNumber(request.phoneNumber());
+        user.setRole(request.role());
         userRepository.save(user);
         return new UserCredentialDto(user.getId(), user.getEmail(), user.getPassword(), user.getRole());
     }

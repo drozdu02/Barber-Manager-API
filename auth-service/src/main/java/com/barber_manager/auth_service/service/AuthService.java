@@ -7,9 +7,13 @@ import com.barber_manager.auth_service.repository.RefreshTokenRepository;
 import com.barber_manager.auth_service.client.UserClient;
 import com.barber_manager.auth_service.dto.request.LoginRequestDto;
 import com.barber_manager.auth_service.dto.request.RegisterRequestDto;
+import com.barber_manager.auth_service.dto.response.StaffAccountResponse;
 import com.barber_manager.auth_service.dto.response.TokenResponseDto;
 import com.barber_manager.auth_service.dto.response.UserCredentialDto;
 import com.barber_manager.auth_service.entity.RefreshToken;
+import com.barber_manager.auth_service.enums.Role;
+import com.barber_manager.auth_service.exceptions.InvalidRegistrationException;
+import com.barber_manager.auth_service.exceptions.StaffAccessDeniedException;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -39,20 +43,29 @@ public class AuthService {
         if (!passwordEncoder.matches(loginRequestDto.password(), user.password())){
             throw new BadCredentialsException("Invalid password.");
         }
+        ensureStaffRole(user.role());
         refreshTokenRepository.revokeAllByUserId(user.id());
 
         return issueTokens(user.id(), user.email(), String.valueOf(user.role()));
     }
 
-    public TokenResponseDto register(RegisterRequestDto registerRequestDto){
+    public StaffAccountResponse register(RegisterRequestDto registerRequestDto){
+        if (!isStaffRole(registerRequestDto.role())) {
+            throw new InvalidRegistrationException();
+        }
         UserCredentialDto user;
         try {
             user = userClient.createUser(registerRequestDto);
         }catch (FeignException.Conflict e){
             throw new UserAlreadyExistsException("Invalid credentials.");
         }
-        return issueTokens(user.id(), user.email(), String.valueOf(user.role()));
-
+        return new StaffAccountResponse(
+                user.id(),
+                user.email(),
+                registerRequestDto.firstName(),
+                registerRequestDto.lastName(),
+                String.valueOf(user.role())
+        );
     }
     public void logout(LogoutRequestDto requestDto){
         refreshTokenRepository
@@ -107,7 +120,22 @@ public class AuthService {
             throw new InvalidTokenException("Refresh token expired.");
         }
         UserCredentialDto user = userClient.getCredentialsById(refreshToken.getUserId());
+        if (!isStaffRole(user.role())) {
+            refreshToken.setRevoked(true);
+            refreshTokenRepository.save(refreshToken);
+            throw new StaffAccessDeniedException();
+        }
         return issueTokens(user.id(), user.email(), String.valueOf(user.role()));
+    }
+
+    private void ensureStaffRole(Role role) {
+        if (!isStaffRole(role)) {
+            throw new StaffAccessDeniedException();
+        }
+    }
+
+    private boolean isStaffRole(Role role) {
+        return role == Role.BARBER || role == Role.ADMIN;
     }
 
 }

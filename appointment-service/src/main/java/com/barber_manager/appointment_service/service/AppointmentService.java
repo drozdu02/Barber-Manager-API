@@ -2,6 +2,7 @@ package com.barber_manager.appointment_service.service;
 
 import com.barber_manager.appointment_service.dto.AppointmentResponse;
 import com.barber_manager.appointment_service.dto.CreateAppointmentRequest;
+import com.barber_manager.appointment_service.dto.StaffAppointmentResponse;
 import com.barber_manager.appointment_service.entity.Appointment;
 import com.barber_manager.appointment_service.entity.ServiceOffering;
 import com.barber_manager.appointment_service.enums.AppointmentStatus;
@@ -10,6 +11,7 @@ import com.barber_manager.appointment_service.exception.NotFoundException;
 import com.barber_manager.appointment_service.repository.AppointmentRepository;
 import com.barber_manager.appointment_service.repository.BlockedPhoneNumberRepository;
 import com.barber_manager.appointment_service.repository.ServiceOfferingRepository;
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,11 +33,12 @@ public class AppointmentService {
     private final AppointmentRepository appointmentRepository;
     private final ServiceOfferingRepository serviceOfferingRepository;
     private final BlockedPhoneNumberRepository blockedPhoneNumberRepository;
+    private final MailService mailService;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
-    public AppointmentResponse create(CreateAppointmentRequest request) {
+    public AppointmentResponse create(CreateAppointmentRequest request) throws MessagingException {
         blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue(request.phoneNumber())
                 .ifPresent(b -> {
                     throw new BusinessRuleException("Phone number is blocked.");
@@ -61,11 +64,18 @@ public class AppointmentService {
         appointment.setLastName(request.lastName());
         appointment.setPhoneNumber(request.phoneNumber());
         appointment.setEmail(request.email());
-        appointment.setReservationCode(generateUniqueReservationCode());
+        String code = generateUniqueReservationCode();
+        appointment.setReservationCode(code);
         appointment.setCanceled(false);
         appointment.setStatus(AppointmentStatus.SCHEDULED);
 
         Appointment saved = appointmentRepository.save(appointment);
+        mailService.sendConfirmationEmail(
+                request.email(),
+                request.firstName(),
+                code,
+                request.startTime().toString()
+        );
         return toResponse(saved);
     }
 
@@ -89,27 +99,28 @@ public class AppointmentService {
     }
 
     @Transactional
-    public AppointmentResponse updateStatus(Long appointmentId, AppointmentStatus status) {
+    public StaffAppointmentResponse updateStatus(Long appointmentId, AppointmentStatus status) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new NotFoundException("Appointment not found."));
 
         appointment.setStatus(status);
         appointment.setCanceled(status == AppointmentStatus.CANCELED);
         Appointment saved = appointmentRepository.save(appointment);
-        return toResponse(saved);
+        return toStaffResponse(saved);
     }
 
-    public AppointmentResponse getDetails(Long appointmentId) {
+    public StaffAppointmentResponse getStaffDetails(Long appointmentId) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new NotFoundException("Appointment not found."));
-        return toResponse(appointment);
+        return toStaffResponse(appointment);
     }
 
-    public java.util.List<AppointmentResponse> getBarberCalendar(Long barberId, LocalDateTime from, LocalDateTime to) {
+    public List<StaffAppointmentResponse> getBarberCalendar(Long barberId, LocalDateTime from, LocalDateTime to) {
         return appointmentRepository.findAllByBarberIdAndStartTimeBetweenAndCanceledFalse(barberId, from, to).stream()
-                .map(this::toResponse)
+                .map(this::toStaffResponse)
                 .toList();
     }
+
 
     private void ensureNoOverlap(Long barberId, LocalDateTime start, LocalDateTime end) {
         if (!appointmentRepository.findOverlapping(barberId, start, end).isEmpty()) {
@@ -165,5 +176,24 @@ public class AppointmentService {
                 a.getStatus() != null ? a.getStatus().name() : null
         );
     }
+
+    private StaffAppointmentResponse toStaffResponse(Appointment a) {
+        return new StaffAppointmentResponse(
+                a.getId(),
+                a.getServiceOffering().getId(),
+                a.getServiceOffering().getName(),
+                a.getBarberId(),
+                a.getStartTime(),
+                a.getEndTime(),
+                a.getFirstName(),
+                a.getLastName(),
+                a.getPhoneNumber(),
+                a.getEmail(),
+                a.getReservationCode(),
+                a.isCanceled(),
+                a.getStatus() != null ? a.getStatus().name() : null
+        );
+    }
+
 }
 

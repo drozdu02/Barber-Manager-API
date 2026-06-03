@@ -15,6 +15,32 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
     List<Appointment> findAllByBarberIdAndStartTimeBetweenAndCanceledFalse(Long barberId, LocalDateTime from, LocalDateTime to);
 
+    List<Appointment> findAllByBarberIdAndCanceledFalseAndStartTimeAfter(Long barberId, LocalDateTime after);
+
+    List<Appointment> findAllByBarberIdAndCanceledFalseAndStartTimeBetween(
+            Long barberId,
+            LocalDateTime from,
+            LocalDateTime to
+    );
+
+    List<Appointment> findAllByPhoneNumberAndCanceledFalseAndStartTimeAfter(
+            String phoneNumber,
+            LocalDateTime after
+    );
+
+    @Query("""
+            SELECT a FROM Appointment a
+            WHERE a.canceled = false
+              AND a.status = com.barber_manager.appointment_service.enums.AppointmentStatus.SCHEDULED
+              AND a.reminderSent = false
+              AND a.startTime > :now
+              AND a.startTime <= :sendBefore
+            """)
+    List<Appointment> findDueForReminder(
+            @Param("now") LocalDateTime now,
+            @Param("sendBefore") LocalDateTime sendBefore
+    );
+
     @Query("""
             SELECT a FROM Appointment a
             WHERE a.canceled = false

@@ -77,6 +77,9 @@ public class Appointment {
     @Column(nullable = false)
     private AppointmentStatus status = AppointmentStatus.SCHEDULED;
 
+    @Column(nullable = false)
+    private boolean reminderSent = false;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -1,7 +1,9 @@
 package com.barber_manager.user_service.dto.request;
 
+import com.barber_manager.user_service.enums.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -13,5 +15,6 @@ public record RegisterRequestDto(
         @NotBlank(message = "Phone number is required.")
         @Size(min = 9, max = 9, message = "Phone number must be 9 digits.")
         @Pattern(regexp = "^[0-9]*$", message = "Phone number must contain only digits.")
-        String phoneNumber
+        String phoneNumber,
+        @NotNull Role role
 ) {}

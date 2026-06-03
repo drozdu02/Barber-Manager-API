@@ -1,6 +1,8 @@
 package com.barber_manager.auth_service.error;
 
+import com.barber_manager.auth_service.exceptions.InvalidRegistrationException;
 import com.barber_manager.auth_service.exceptions.InvalidTokenException;
+import com.barber_manager.auth_service.exceptions.StaffAccessDeniedException;
 import com.barber_manager.auth_service.exceptions.UserAlreadyExistsException;
 import com.barber_manager.auth_service.exceptions.UserNotFoundException;
 import feign.FeignException;
@@ -90,6 +92,22 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(InvalidRegistrationException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidRegistration(
+            InvalidRegistrationException ex,
+            HttpServletRequest request
+    ) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(StaffAccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleStaffAccessDenied(
+            StaffAccessDeniedException ex,
+            HttpServletRequest request
+    ) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(UserAlreadyExistsException.class)

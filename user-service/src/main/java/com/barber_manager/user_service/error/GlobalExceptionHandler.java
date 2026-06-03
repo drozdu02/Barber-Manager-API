@@ -2,6 +2,7 @@ package com.barber_manager.user_service.error;
 
 import com.barber_manager.user_service.exceptions.UserAlreadyExistsException;
 import com.barber_manager.user_service.exceptions.UserNotFoundException;
+import com.barber_manager.user_service.exceptions.UserServiceLogicException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -70,6 +71,14 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         return build(HttpStatus.BAD_REQUEST, "Invalid parameter value.", request, null);
+    }
+
+    @ExceptionHandler(UserServiceLogicException.class)
+    public ResponseEntity<ApiErrorResponse> handleUserServiceLogic(
+            UserServiceLogicException ex,
+            HttpServletRequest request
+    ) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(UserAlreadyExistsException.class)

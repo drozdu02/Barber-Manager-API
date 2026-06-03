@@ -4,8 +4,10 @@ import com.barber_manager.auth_service.dto.request.LoginRequestDto;
 import com.barber_manager.auth_service.dto.request.LogoutRequestDto;
 import com.barber_manager.auth_service.dto.request.RefreshRequestDto;
 import com.barber_manager.auth_service.dto.request.RegisterRequestDto;
+import com.barber_manager.auth_service.dto.response.StaffAccountResponse;
 import com.barber_manager.auth_service.dto.response.TokenResponseDto;
 import com.barber_manager.auth_service.service.AuthService;
+import com.barber_manager.auth_service.web.RefreshTokenCookieService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,12 +15,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import com.barber_manager.auth_service.web.RefreshTokenCookieService;
+import jakarta.validation.Valid;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/auth")
@@ -28,13 +30,10 @@ public class AuthController {
     private final RefreshTokenCookieService refreshTokenCookieService;
 
     @PostMapping("/register")
-    public ResponseEntity<TokenResponseDto> register(
-            @RequestBody RegisterRequestDto registerRequestDto,
-            HttpServletResponse response
+    public ResponseEntity<StaffAccountResponse> register(
+            @Valid @RequestBody RegisterRequestDto registerRequestDto
             ){
-        TokenResponseDto tokens = authService.register(registerRequestDto);
-        refreshTokenCookieService.setRefreshToken(response, tokens.refreshToken(), Duration.ofDays(7));
-        return ResponseEntity.status(HttpStatus.CREATED).body(TokenResponseDto.accessOnly(tokens.accessToken()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(registerRequestDto));
     }
 
     @PostMapping("/login")
