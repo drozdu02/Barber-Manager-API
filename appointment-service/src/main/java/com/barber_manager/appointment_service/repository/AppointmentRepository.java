@@ -11,7 +11,7 @@ import java.util.Optional;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
-    Optional<Appointment> findByReservationCode(String reservationCode);
+    Optional<Appointment> findByBookingToken(String bookingToken);
 
     List<Appointment> findAllByBarberIdAndStartTimeBetweenAndCanceledFalse(Long barberId, LocalDateTime from, LocalDateTime to);
 
@@ -31,7 +31,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     @Query("""
             SELECT a FROM Appointment a
             WHERE a.canceled = false
-              AND a.status = com.barber_manager.appointment_service.enums.AppointmentStatus.SCHEDULED
+              AND a.status = com.barber_manager.appointment_service.enums.AppointmentStatus.BOOKED
               AND a.reminderSent = false
               AND a.startTime > :now
               AND a.startTime <= :sendBefore

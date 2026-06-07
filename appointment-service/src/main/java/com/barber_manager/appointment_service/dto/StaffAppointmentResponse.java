@@ -13,7 +13,7 @@ public record StaffAppointmentResponse(
         String lastName,
         String phoneNumber,
         String email,
-        String reservationCode,
+        String bookingToken,
         boolean canceled,
         String status
 ) {

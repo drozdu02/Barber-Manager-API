@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "appointments", indexes = {
-        @Index(name = "idx_appointments_reservation_code", columnList = "reservationCode", unique = true),
+        @Index(name = "idx_appointments_booking_token", columnList = "bookingToken", unique = true),
         @Index(name = "idx_appointments_start_time", columnList = "startTime"),
         @Index(name = "idx_appointments_barber_start_time", columnList = "barberId,startTime")
 })
@@ -36,8 +36,8 @@ public class Appointment {
 
     @NotNull
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "service_offering_id", nullable = false)
-    private ServiceOffering serviceOffering;
+    @JoinColumn(name = "service_id", nullable = false)
+    private Service service;
 
     @NotNull
     @Column(nullable = false)
@@ -68,14 +68,14 @@ public class Appointment {
 
     @NotBlank
     @Column(nullable = false, unique = true, length = 32)
-    private String reservationCode;
+    private String bookingToken;
 
     @Column(nullable = false)
     private boolean canceled = false;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private AppointmentStatus status = AppointmentStatus.SCHEDULED;
+    private AppointmentStatus status = AppointmentStatus.BOOKED;
 
     @Column(nullable = false)
     private boolean reminderSent = false;

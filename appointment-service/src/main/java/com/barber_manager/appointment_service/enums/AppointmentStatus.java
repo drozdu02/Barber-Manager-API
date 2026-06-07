@@ -1,7 +1,7 @@
 package com.barber_manager.appointment_service.enums;
 
 public enum AppointmentStatus {
-    SCHEDULED,
+    BOOKED,
     COMPLETED,
     CANCELED,
     NO_SHOW

@@ -1,10 +1,12 @@
 package com.barber_manager.appointment_service.service;
 
+import com.barber_manager.appointment_service.config.ClientBlockProperties;
 import com.barber_manager.appointment_service.dto.admin.BlockPhoneRequest;
 import com.barber_manager.appointment_service.dto.admin.BlockPhoneResponse;
 import com.barber_manager.appointment_service.entity.Appointment;
 import com.barber_manager.appointment_service.entity.BlockedPhoneNumber;
-import com.barber_manager.appointment_service.enums.AppointmentStatus;
+import com.barber_manager.appointment_service.events.ClientBlockedEvent;
+import com.barber_manager.appointment_service.events.DomainEventPublisher;
 import com.barber_manager.appointment_service.repository.AppointmentRepository;
 import com.barber_manager.appointment_service.repository.BlockedPhoneNumberRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -20,25 +23,26 @@ public class ClientBlockService {
 
     private final BlockedPhoneNumberRepository blockedPhoneNumberRepository;
     private final AppointmentRepository appointmentRepository;
+    private final ClientBlockProperties clientBlockProperties;
+    private final DomainEventPublisher domainEventPublisher;
 
     @Transactional
     public BlockPhoneResponse blockPhone(BlockPhoneRequest request) {
-        BlockedPhoneNumber block = blockedPhoneNumberRepository.findByPhoneNumber(request.phoneNumber())
-                .orElseGet(BlockedPhoneNumber::new);
-        block.setPhoneNumber(request.phoneNumber());
-        block.setReason(request.reason());
-        block.setActive(true);
+        return blockPhone(request.phoneNumber(), request.reason(), false);
+    }
 
-        BlockedPhoneNumber saved = blockedPhoneNumberRepository.save(block);
-        int canceledCount = cancelFutureAppointments(request.phoneNumber());
+    @Transactional
+    public Optional<BlockPhoneResponse> applyBlockIfNoShowThresholdExceeded(String phoneNumber, int noShowCount) {
+        if (noShowCount < clientBlockProperties.getNoShowThreshold()) {
+            return Optional.empty();
+        }
+        if (blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue(phoneNumber).isPresent()) {
+            return Optional.empty();
+        }
 
-        return new BlockPhoneResponse(
-                saved.getId(),
-                saved.getPhoneNumber(),
-                saved.getReason(),
-                saved.isActive(),
-                canceledCount
-        );
+        String reason = "Automatic block: no-show threshold exceeded ("
+                + noShowCount + " incidents, limit " + clientBlockProperties.getNoShowThreshold() + ").";
+        return Optional.of(blockPhone(phoneNumber, reason, true));
     }
 
     @Transactional
@@ -49,15 +53,49 @@ public class ClientBlockService {
         });
     }
 
-    private int cancelFutureAppointments(String phoneNumber) {
-        List<Appointment> futureAppointments = appointmentRepository
-                .findAllByPhoneNumberAndCanceledFalseAndStartTimeAfter(phoneNumber, LocalDateTime.now());
+    public boolean isBlocked(String phoneNumber) {
+        return blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue(phoneNumber).isPresent();
+    }
 
-        for (Appointment appointment : futureAppointments) {
-            appointment.setCanceled(true);
-            appointment.setStatus(AppointmentStatus.CANCELED);
-        }
-        appointmentRepository.saveAll(futureAppointments);
-        return futureAppointments.size();
+    public int getNoShowThreshold() {
+        return clientBlockProperties.getNoShowThreshold();
+    }
+
+    private BlockPhoneResponse blockPhone(String phoneNumber, String reason, boolean automatic) {
+        BlockedPhoneNumber block = blockedPhoneNumberRepository.findByPhoneNumber(phoneNumber)
+                .orElseGet(BlockedPhoneNumber::new);
+        block.setPhoneNumber(phoneNumber);
+        block.setReason(reason);
+        block.setActive(true);
+
+        BlockedPhoneNumber saved = blockedPhoneNumberRepository.save(block);
+        List<Long> futureAppointmentIds = findFutureAppointmentIds(phoneNumber);
+
+        domainEventPublisher.publish(new ClientBlockedEvent(
+                domainEventPublisher.newEventId(),
+                domainEventPublisher.now(),
+                saved.getId(),
+                phoneNumber,
+                reason,
+                automatic,
+                futureAppointmentIds
+        ));
+
+        return new BlockPhoneResponse(
+                saved.getId(),
+                saved.getPhoneNumber(),
+                saved.getReason(),
+                saved.isActive(),
+                futureAppointmentIds.size(),
+                automatic
+        );
+    }
+
+    private List<Long> findFutureAppointmentIds(String phoneNumber) {
+        return appointmentRepository
+                .findAllByPhoneNumberAndCanceledFalseAndStartTimeAfter(phoneNumber, LocalDateTime.now())
+                .stream()
+                .map(Appointment::getId)
+                .toList();
     }
 }

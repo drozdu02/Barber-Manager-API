@@ -137,13 +137,13 @@
 
       <div class="info-section">
         <p><strong>Usługa:</strong> <span th:text="${serviceName}">Strzyżenie</span></p>
-        <p><strong>Termin:</strong> <span th:text="${reservationDate}">01.01.2026 14:00</span></p>
+        <p><strong>Termin:</strong> <span th:text="${appointmentDate}">01.01.2026 14:00</span></p>
         <p><strong>Adres e-mail:</strong> <span th:text="${customerEmail}">jan@example.com</span></p>
       </div>
 
       <div class="code-box">
-        <div class="label">Kod rezerwacji</div>
-        <div class="code" th:text="${reservationCode}">RES-000000</div>
+        <div class="label">Booking Token</div>
+        <div class="code" th:text="${bookingToken}">RES-000000</div>
       </div>
 
       <p class="note">

@@ -1,5 +1,6 @@
 package com.barber_manager.appointment_service.service;
 
+import com.barber_manager.appointment_service.communication.NotificationDispatchService;
 import com.barber_manager.appointment_service.config.ReminderProperties;
 import com.barber_manager.appointment_service.entity.Appointment;
 import com.barber_manager.appointment_service.repository.AppointmentRepository;
@@ -21,7 +22,7 @@ import java.util.List;
 public class AppointmentReminderScheduler {
 
     private final AppointmentRepository appointmentRepository;
-    private final MailService mailService;
+    private final NotificationDispatchService notificationDispatchService;
     private final ReminderProperties reminderProperties;
 
     @Scheduled(fixedDelayString = "${appointment.reminder.fixed-delay-ms:900000}")
@@ -33,11 +34,11 @@ public class AppointmentReminderScheduler {
         List<Appointment> due = appointmentRepository.findDueForReminder(now, sendBefore);
         for (Appointment appointment : due) {
             try {
-                mailService.sendReminderEmail(
+                notificationDispatchService.dispatchAppointmentReminder(
                         appointment.getEmail(),
                         appointment.getFirstName(),
-                        appointment.getServiceOffering().getName(),
-                        appointment.getReservationCode(),
+                        appointment.getService().getName(),
+                        appointment.getBookingToken(),
                         appointment.getStartTime().toString()
                 );
                 appointment.setReminderSent(true);

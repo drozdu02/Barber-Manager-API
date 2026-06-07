@@ -1,4 +1,4 @@
-package com.barber_manager.appointment_service.service;
+package com.barber_manager.appointment_service.communication;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -11,38 +11,38 @@ import org.thymeleaf.context.Context;
 
 @Service
 @AllArgsConstructor
-public class MailService {
+class MailService {
 
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
-    public void sendConfirmationEmail(
+    void sendConfirmationEmail(
             String to,
             String customerName,
-            String reservationCode,
-            String reservationDate
+            String bookingToken,
+            String appointmentDate
     ) throws MessagingException {
         Context context = new Context();
         context.setVariable("customerName", customerName);
-        context.setVariable("reservationCode", reservationCode);
-        context.setVariable("reservationDate", reservationDate);
+        context.setVariable("bookingToken", bookingToken);
+        context.setVariable("appointmentDate", appointmentDate);
         context.setVariable("customerEmail", to);
 
         sendHtmlEmail(to, "Potwierdzenie rezerwacji — Barber Manager", "reservation-confirmation", context);
     }
 
-    public void sendReminderEmail(
+    void sendReminderEmail(
             String to,
             String customerName,
             String serviceName,
-            String reservationCode,
-            String reservationDate
+            String bookingToken,
+            String appointmentDate
     ) throws MessagingException {
         Context context = new Context();
         context.setVariable("customerName", customerName);
         context.setVariable("serviceName", serviceName);
-        context.setVariable("reservationCode", reservationCode);
-        context.setVariable("reservationDate", reservationDate);
+        context.setVariable("bookingToken", bookingToken);
+        context.setVariable("appointmentDate", appointmentDate);
         context.setVariable("customerEmail", to);
 
         sendHtmlEmail(to, "Przypomnienie o wizycie — Barber Manager", "reservation-reminder", context);

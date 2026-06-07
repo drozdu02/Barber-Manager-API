@@ -2,39 +2,44 @@ package com.barber_manager.appointment_service.service;
 
 import com.barber_manager.appointment_service.dto.AvailabilityResponse;
 import com.barber_manager.appointment_service.dto.AvailabilitySlotResponse;
+import com.barber_manager.appointment_service.dto.BarberAssignment;
 import com.barber_manager.appointment_service.entity.BarberWorkSchedule;
-import com.barber_manager.appointment_service.entity.ServiceOffering;
+import com.barber_manager.appointment_service.entity.Service;
 import com.barber_manager.appointment_service.exception.BusinessRuleException;
 import com.barber_manager.appointment_service.exception.NotFoundException;
 import com.barber_manager.appointment_service.repository.AppointmentRepository;
 import com.barber_manager.appointment_service.repository.BarberBreakRepository;
+import com.barber_manager.appointment_service.repository.BarberServiceCompetencyRepository;
 import com.barber_manager.appointment_service.repository.BarberTimeOffRepository;
 import com.barber_manager.appointment_service.repository.BarberWorkScheduleRepository;
-import com.barber_manager.appointment_service.repository.ServiceOfferingRepository;
+import com.barber_manager.appointment_service.repository.ServiceRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
-@Service
+@org.springframework.stereotype.Service
 @RequiredArgsConstructor
 public class AvailabilityService {
 
     private static final int SLOT_MINUTES = 30;
+    private static final int SEARCH_HORIZON_DAYS = 60;
 
     private final AppointmentRepository appointmentRepository;
-    private final ServiceOfferingRepository serviceOfferingRepository;
+    private final ServiceRepository serviceRepository;
     private final BarberBreakRepository barberBreakRepository;
     private final BarberWorkScheduleRepository workScheduleRepository;
     private final BarberTimeOffRepository timeOffRepository;
+    private final BarberServiceCompetencyRepository competencyRepository;
 
     public AvailabilityResponse getAvailability(
             LocalDate date,
@@ -43,8 +48,8 @@ public class AvailabilityService {
             boolean any,
             List<Long> barberIds
     ) {
-        ServiceOffering service = serviceOfferingRepository.findById(serviceId)
-                .orElseThrow(() -> new NotFoundException("Service offering not found."));
+        Service service = serviceRepository.findById(serviceId)
+                .orElseThrow(() -> new NotFoundException("Service not found."));
 
         int durationMinutes = service.getSlotCount() * SLOT_MINUTES;
 
@@ -52,7 +57,8 @@ public class AvailabilityService {
             if (barberIds == null || barberIds.isEmpty()) {
                 throw new BusinessRuleException("When any=true you must provide barberIds.");
             }
-            List<AvailabilitySlotResponse> slots = buildMergedSlots(barberIds, date, durationMinutes);
+            List<Long> competentBarbers = filterCompetentBarbers(serviceId, barberIds);
+            List<AvailabilitySlotResponse> slots = buildMergedSlots(competentBarbers, date, durationMinutes);
             return new AvailabilityResponse(date, serviceId, null, true, slots);
         }
 
@@ -60,8 +66,75 @@ public class AvailabilityService {
             throw new BusinessRuleException("barberId is required when any=false.");
         }
 
+        ensureBarberCompetent(serviceId, barberId);
         List<AvailabilitySlotResponse> slots = buildSlotsForBarber(barberId, date, durationMinutes);
         return new AvailabilityResponse(date, serviceId, barberId, false, slots);
+    }
+
+    public List<Long> filterCompetentBarbers(Long serviceId, List<Long> barberIds) {
+        if (barberIds == null || barberIds.isEmpty()) {
+            return List.of();
+        }
+        if (!competencyRepository.existsByServiceId(serviceId)) {
+            return barberIds;
+        }
+
+        Set<Long> competent = new HashSet<>(competencyRepository.findBarberIdsByServiceId(serviceId));
+        return barberIds.stream()
+                .filter(competent::contains)
+                .toList();
+    }
+
+    public Optional<Long> resolveBarberForSlot(
+            Long serviceId,
+            List<Long> barberIds,
+            LocalDateTime start,
+            LocalDateTime end
+    ) {
+        List<Long> competentBarbers = filterCompetentBarbers(serviceId, barberIds);
+        for (Long candidate : competentBarbers) {
+            if (isFree(candidate, start, end)) {
+                return Optional.of(candidate);
+            }
+        }
+        return Optional.empty();
+    }
+
+    public Optional<BarberAssignment> findEarliestAssignment(
+            Long serviceId,
+            List<Long> barberIds,
+            LocalDateTime searchFrom
+    ) {
+        Service service = serviceRepository.findById(serviceId)
+                .orElseThrow(() -> new NotFoundException("Service not found."));
+
+        List<Long> competentBarbers = filterCompetentBarbers(serviceId, barberIds);
+        if (competentBarbers.isEmpty()) {
+            return Optional.empty();
+        }
+
+        int durationMinutes = service.getSlotCount() * SLOT_MINUTES;
+        LocalDateTime anchor = searchFrom != null ? searchFrom : LocalDateTime.now();
+
+        for (int dayOffset = 0; dayOffset < SEARCH_HORIZON_DAYS; dayOffset++) {
+            LocalDate date = anchor.toLocalDate().plusDays(dayOffset);
+            for (AvailabilitySlotResponse slot : buildMergedSlots(competentBarbers, date, durationMinutes)) {
+                if (!slot.startTime().isBefore(anchor) && !slot.availableBarberIds().isEmpty()) {
+                    Long barberId = slot.availableBarberIds().getFirst();
+                    return Optional.of(new BarberAssignment(barberId, slot.startTime(), slot.endTime()));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private void ensureBarberCompetent(Long serviceId, Long barberId) {
+        if (!competencyRepository.existsByServiceId(serviceId)) {
+            return;
+        }
+        if (!competencyRepository.existsByBarberIdAndServiceId(barberId, serviceId)) {
+            throw new BusinessRuleException("Barber cannot perform this service.");
+        }
     }
 
     private List<AvailabilitySlotResponse> buildMergedSlots(

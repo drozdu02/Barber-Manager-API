@@ -6,7 +6,6 @@ import com.barber_manager.appointment_service.dto.StaffAppointmentResponse;
 import com.barber_manager.appointment_service.dto.UpdateAppointmentStatusRequest;
 import com.barber_manager.appointment_service.enums.AppointmentStatus;
 import com.barber_manager.appointment_service.service.AppointmentService;
-import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,15 +28,15 @@ public class AppointmentController {
     @PostMapping
     public ResponseEntity<AppointmentResponse> create(
             @Valid @RequestBody CreateAppointmentRequest request
-    ) throws MessagingException {
+    ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));
     }
 
-    @PostMapping("/cancel/{reservationCode}")
+    @PostMapping("/cancel/{bookingToken}")
     public ResponseEntity<Void> cancel(
-            @PathVariable String reservationCode
+            @PathVariable String bookingToken
     ) {
-        service.cancelByReservationCode(reservationCode);
+        service.cancelByBookingToken(bookingToken);
         return ResponseEntity.noContent().build();
     }
 

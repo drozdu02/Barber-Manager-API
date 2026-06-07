@@ -5,6 +5,7 @@ public record BlockPhoneResponse(
         String phoneNumber,
         String reason,
         boolean active,
-        int canceledAppointments
+        int canceledAppointments,
+        boolean automatic
 ) {
 }

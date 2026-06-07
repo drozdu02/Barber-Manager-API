@@ -11,11 +11,11 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "service_offerings")
+@Table(name = "services")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ServiceOffering {
+public class Service {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,4 +38,3 @@ public class ServiceOffering {
     @Column(nullable = false)
     private Integer slotCount;
 }
-

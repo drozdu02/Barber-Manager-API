@@ -8,7 +8,7 @@ public record AppointmentResponse(
         Long barberId,
         LocalDateTime startTime,
         LocalDateTime endTime,
-        String reservationCode,
+        String bookingToken,
         boolean canceled,
         String status
 ) {

@@ -1,19 +1,22 @@
 package com.barber_manager.appointment_service.service;
 
 import com.barber_manager.appointment_service.dto.AppointmentResponse;
+import com.barber_manager.appointment_service.dto.BarberAssignment;
 import com.barber_manager.appointment_service.dto.CreateAppointmentRequest;
 import com.barber_manager.appointment_service.dto.StaffAppointmentResponse;
 import com.barber_manager.appointment_service.entity.Appointment;
-import com.barber_manager.appointment_service.entity.ServiceOffering;
+import com.barber_manager.appointment_service.entity.Service;
 import com.barber_manager.appointment_service.enums.AppointmentStatus;
+import com.barber_manager.appointment_service.events.AppointmentBookedEvent;
+import com.barber_manager.appointment_service.events.AppointmentCanceledEvent;
+import com.barber_manager.appointment_service.events.CancellationSource;
+import com.barber_manager.appointment_service.events.DomainEventPublisher;
 import com.barber_manager.appointment_service.exception.BusinessRuleException;
 import com.barber_manager.appointment_service.exception.NotFoundException;
 import com.barber_manager.appointment_service.repository.AppointmentRepository;
 import com.barber_manager.appointment_service.repository.BlockedPhoneNumberRepository;
-import com.barber_manager.appointment_service.repository.ServiceOfferingRepository;
-import jakarta.mail.MessagingException;
+import com.barber_manager.appointment_service.repository.ServiceRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
@@ -21,7 +24,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Service
+@org.springframework.stereotype.Service
 @RequiredArgsConstructor
 public class AppointmentService {
 
@@ -31,32 +34,35 @@ public class AppointmentService {
     private static final int CODE_LENGTH = 10;
 
     private final AppointmentRepository appointmentRepository;
-    private final ServiceOfferingRepository serviceOfferingRepository;
+    private final ServiceRepository serviceRepository;
+    private final AvailabilityService availabilityService;
     private final BlockedPhoneNumberRepository blockedPhoneNumberRepository;
-    private final MailService mailService;
+    private final NoShowRegistrationService noShowRegistrationService;
+    private final DomainEventPublisher domainEventPublisher;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
-    public AppointmentResponse create(CreateAppointmentRequest request) throws MessagingException {
+    public AppointmentResponse create(CreateAppointmentRequest request) {
         blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue(request.phoneNumber())
                 .ifPresent(b -> {
                     throw new BusinessRuleException("Phone number is blocked.");
                 });
 
-        ServiceOffering service = serviceOfferingRepository.findById(request.serviceId())
-                .orElseThrow(() -> new NotFoundException("Service offering not found."));
+        Service service = serviceRepository.findById(request.serviceId())
+                .orElseThrow(() -> new NotFoundException("Service not found."));
 
-        LocalDateTime start = request.startTime();
-        LocalDateTime end = start.plusMinutes((long) service.getSlotCount() * SLOT_MINUTES);
+        BarberAssignment assignment = resolveAssignment(request, service);
+        Long barberId = assignment.barberId();
+        LocalDateTime start = assignment.startTime();
+        LocalDateTime end = assignment.endTime();
 
-        Long barberId = resolveBarberId(request, end);
         if (barberId != null) {
             ensureNoOverlap(barberId, start, end);
         }
 
         Appointment appointment = new Appointment();
-        appointment.setServiceOffering(service);
+        appointment.setService(service);
         appointment.setBarberId(barberId);
         appointment.setStartTime(start);
         appointment.setEndTime(end);
@@ -64,25 +70,20 @@ public class AppointmentService {
         appointment.setLastName(request.lastName());
         appointment.setPhoneNumber(request.phoneNumber());
         appointment.setEmail(request.email());
-        String code = generateUniqueReservationCode();
-        appointment.setReservationCode(code);
+        String token = generateUniqueBookingToken();
+        appointment.setBookingToken(token);
         appointment.setCanceled(false);
-        appointment.setStatus(AppointmentStatus.SCHEDULED);
+        appointment.setStatus(AppointmentStatus.BOOKED);
 
         Appointment saved = appointmentRepository.save(appointment);
-        mailService.sendConfirmationEmail(
-                request.email(),
-                request.firstName(),
-                code,
-                request.startTime().toString()
-        );
+        publishBooked(saved);
         return toResponse(saved);
     }
 
     @Transactional
-    public void cancelByReservationCode(String reservationCode) {
-        Appointment appointment = appointmentRepository.findByReservationCode(reservationCode)
-                .orElseThrow(() -> new NotFoundException("Reservation code not found."));
+    public void cancelByBookingToken(String bookingToken) {
+        Appointment appointment = appointmentRepository.findByBookingToken(bookingToken)
+                .orElseThrow(() -> new NotFoundException("Booking token not found."));
 
         if (appointment.isCanceled()) {
             return;
@@ -95,7 +96,8 @@ public class AppointmentService {
 
         appointment.setCanceled(true);
         appointment.setStatus(AppointmentStatus.CANCELED);
-        appointmentRepository.save(appointment);
+        Appointment saved = appointmentRepository.save(appointment);
+        publishCanceled(saved, CancellationSource.CLIENT_TOKEN);
     }
 
     @Transactional
@@ -103,9 +105,19 @@ public class AppointmentService {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new NotFoundException("Appointment not found."));
 
+        if (status == AppointmentStatus.NO_SHOW && appointment.getStatus() != AppointmentStatus.NO_SHOW) {
+            noShowRegistrationService.registerNoShow(appointment);
+        }
+
+        boolean wasCanceled = appointment.isCanceled();
         appointment.setStatus(status);
         appointment.setCanceled(status == AppointmentStatus.CANCELED);
         Appointment saved = appointmentRepository.save(appointment);
+
+        if (status == AppointmentStatus.CANCELED && !wasCanceled) {
+            publishCanceled(saved, CancellationSource.STAFF_STATUS);
+        }
+
         return toStaffResponse(saved);
     }
 
@@ -121,6 +133,31 @@ public class AppointmentService {
                 .toList();
     }
 
+    private void publishBooked(Appointment appointment) {
+        domainEventPublisher.publish(new AppointmentBookedEvent(
+                domainEventPublisher.newEventId(),
+                domainEventPublisher.now(),
+                appointment.getId(),
+                appointment.getEmail(),
+                appointment.getFirstName(),
+                appointment.getBookingToken(),
+                appointment.getStartTime()
+        ));
+    }
+
+    private void publishCanceled(Appointment appointment, CancellationSource source) {
+        domainEventPublisher.publish(new AppointmentCanceledEvent(
+                domainEventPublisher.newEventId(),
+                domainEventPublisher.now(),
+                appointment.getId(),
+                appointment.getBarberId(),
+                appointment.getStartTime(),
+                appointment.getEndTime(),
+                appointment.getPhoneNumber(),
+                appointment.getBookingToken(),
+                source
+        ));
+    }
 
     private void ensureNoOverlap(Long barberId, LocalDateTime start, LocalDateTime end) {
         if (!appointmentRepository.findOverlapping(barberId, start, end).isEmpty()) {
@@ -128,34 +165,66 @@ public class AppointmentService {
         }
     }
 
-    private Long resolveBarberId(CreateAppointmentRequest request, LocalDateTime end) {
-        if (request.barberId() != null) return request.barberId();
+    private BarberAssignment resolveAssignment(CreateAppointmentRequest request, Service service) {
+        int durationMinutes = service.getSlotCount() * SLOT_MINUTES;
+
+        if (request.barberId() != null) {
+            LocalDateTime start = requireStartTime(request);
+            availabilityService.filterCompetentBarbers(request.serviceId(), List.of(request.barberId()))
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessRuleException("Barber cannot perform this service."));
+            return new BarberAssignment(
+                    request.barberId(),
+                    start,
+                    start.plusMinutes(durationMinutes)
+            );
+        }
 
         List<Long> candidates = request.anyBarberIds();
         if (candidates == null || candidates.isEmpty()) {
-            return null;
+            throw new BusinessRuleException("barberId or anyBarberIds is required.");
         }
 
-        LocalDateTime start = request.startTime();
-        for (Long candidate : candidates) {
-            if (appointmentRepository.findOverlapping(candidate, start, end).isEmpty()) {
-                return candidate;
-            }
+        if (Boolean.TRUE.equals(request.assignEarliestSlot())) {
+            return availabilityService.findEarliestAssignment(
+                            request.serviceId(),
+                            candidates,
+                            request.startTime()
+                    )
+                    .orElseThrow(() -> new BusinessRuleException("No available barber found."));
         }
-        throw new BusinessRuleException("No available barber for selected time slot.");
+
+        LocalDateTime start = requireStartTime(request);
+        LocalDateTime end = start.plusMinutes(durationMinutes);
+        Long barberId = availabilityService.resolveBarberForSlot(
+                        request.serviceId(),
+                        candidates,
+                        start,
+                        end
+                )
+                .orElseThrow(() -> new BusinessRuleException("No available barber for selected time slot."));
+        return new BarberAssignment(barberId, start, end);
     }
 
-    private String generateUniqueReservationCode() {
+    private LocalDateTime requireStartTime(CreateAppointmentRequest request) {
+        if (request.startTime() == null) {
+            throw new BusinessRuleException("startTime is required.");
+        }
+        return request.startTime();
+    }
+
+    private String generateUniqueBookingToken() {
         for (int attempt = 0; attempt < 20; attempt++) {
-            String code = randomCode();
-            if (appointmentRepository.findByReservationCode(code).isEmpty()) {
-                return code;
+            String token = randomToken();
+            if (appointmentRepository.findByBookingToken(token).isEmpty()) {
+                return token;
             }
         }
-        throw new IllegalStateException("Unable to generate unique reservation code.");
+        throw new IllegalStateException("Unable to generate unique booking token.");
     }
 
-    private String randomCode() {
+    private String randomToken() {
         StringBuilder sb = new StringBuilder(CODE_LENGTH);
         for (int i = 0; i < CODE_LENGTH; i++) {
             int idx = secureRandom.nextInt(CODE_ALPHABET.length());
@@ -167,11 +236,11 @@ public class AppointmentService {
     private AppointmentResponse toResponse(Appointment a) {
         return new AppointmentResponse(
                 a.getId(),
-                a.getServiceOffering().getId(),
+                a.getService().getId(),
                 a.getBarberId(),
                 a.getStartTime(),
                 a.getEndTime(),
-                a.getReservationCode(),
+                a.getBookingToken(),
                 a.isCanceled(),
                 a.getStatus() != null ? a.getStatus().name() : null
         );
@@ -180,8 +249,8 @@ public class AppointmentService {
     private StaffAppointmentResponse toStaffResponse(Appointment a) {
         return new StaffAppointmentResponse(
                 a.getId(),
-                a.getServiceOffering().getId(),
-                a.getServiceOffering().getName(),
+                a.getService().getId(),
+                a.getService().getName(),
                 a.getBarberId(),
                 a.getStartTime(),
                 a.getEndTime(),
@@ -189,11 +258,9 @@ public class AppointmentService {
                 a.getLastName(),
                 a.getPhoneNumber(),
                 a.getEmail(),
-                a.getReservationCode(),
+                a.getBookingToken(),
                 a.isCanceled(),
                 a.getStatus() != null ? a.getStatus().name() : null
         );
     }
-
 }
-

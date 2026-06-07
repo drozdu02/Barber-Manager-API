@@ -19,12 +19,18 @@ public record CreateAppointmentRequest(
         @NotBlank @Email String email,
 
         @NotNull Long serviceId,
-        @NotNull LocalDateTime startTime,
+
+        LocalDateTime startTime,
 
         Long barberId,
 
-       
-        List<Long> anyBarberIds
+        List<Long> anyBarberIds,
+
+        /**
+         * When true with anyBarberIds, the system picks the earliest available slot
+         * among competent barbers. startTime is optional and acts as the search anchor.
+         */
+        Boolean assignEarliestSlot
 ) {
 }
 

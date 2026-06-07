@@ -145,12 +145,12 @@
       </p>
 
       <div class="code-box">
-        <div class="label">Kod rezerwacji</div>
-        <div class="code" th:text="${reservationCode}">RES-000000</div>
+        <div class="label">Booking Token</div>
+        <div class="code" th:text="${bookingToken}">RES-000000</div>
       </div>
 
       <div class="info-section">
-        <p><strong>Data rezerwacji:</strong> <span th:text="${reservationDate}">01.01.2026</span></p>
+        <p><strong>Data rezerwacji:</strong> <span th:text="${appointmentDate}">01.01.2026</span></p>
         <p><strong>Imię i nazwisko:</strong> <span th:text="${customerName}">Jan Kowalski</span></p>
         <p><strong>Adres e-mail:</strong> <span th:text="${customerEmail}">jan@example.com</span></p>
       </div>
