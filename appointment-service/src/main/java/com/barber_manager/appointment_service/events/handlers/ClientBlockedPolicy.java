@@ -10,6 +10,7 @@ import com.barber_manager.appointment_service.repository.AppointmentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -22,7 +23,7 @@ public class ClientBlockedPolicy {
     private final AppointmentRepository appointmentRepository;
     private final DomainEventPublisher domainEventPublisher;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onClientBlocked(ClientBlockedEvent event) {
         for (Long appointmentId : event.futureAppointmentIds()) {
