@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.barber_manager.system.StaffRegistrationSystemTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.048 s -- in com.barber_manager.system.StaffRegistrationSystemTest
