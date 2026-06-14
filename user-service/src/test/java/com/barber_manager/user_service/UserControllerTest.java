@@ -4,13 +4,14 @@ import com.barber_manager.user_service.controller.UserController;
 import com.barber_manager.user_service.dto.request.CreateUserRequest;
 import com.barber_manager.user_service.dto.request.UpdateUserRequest;
 import com.barber_manager.user_service.dto.response.UserResponseDto;
-import com.barber_manager.user_service.entity.User;
-import com.barber_manager.user_service.enums.Role;
+import com.barber_manager.user_service.error.GlobalExceptionHandler;
+import com.barber_manager.user_service.exceptions.UserNotFoundException;
 import com.barber_manager.user_service.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -19,16 +20,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
-
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserController.class)
-public class UserControllerTest {
+@Import(GlobalExceptionHandler.class)
+class UserControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -51,12 +51,22 @@ public class UserControllerTest {
         when(userService.getUserById(1L)).thenReturn(user);
 
         mockMvc.perform(get("/api/v1/users/{id}", 1L)
-                .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.firstName").value("Jan"))
                 .andExpect(jsonPath("$.lastName").value("Kowalski"))
                 .andExpect(jsonPath("$.email").value("jan.kowalski@example.com"));
+    }
+
+    @Test
+    void shouldReturn404WhenUserNotFound() throws Exception {
+        when(userService.getUserById(99L))
+                .thenThrow(new UserNotFoundException("User does not exist with provided ID."));
+
+        mockMvc.perform(get("/api/v1/users/{id}", 99L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("User does not exist with provided ID."));
     }
 
     @Test
@@ -77,15 +87,15 @@ public class UserControllerTest {
                 .andExpect(jsonPath("$[0].firstName").value("Jan"))
                 .andExpect(jsonPath("$[0].lastName").value("Kowalski"))
                 .andExpect(jsonPath("$[0].email").value("jan.kowalski@example.com"));
-
     }
+
     @Test
     void shouldCreateUser() throws Exception {
         CreateUserRequest user = new CreateUserRequest(
                 "Jan",
                 "Kowalski",
                 "jan.kowalski@example.com",
-                "encoded-password",
+                "password123",
                 "123456789"
         );
         UserResponseDto userResponseDto = new UserResponseDto(
@@ -98,14 +108,30 @@ public class UserControllerTest {
         mockMvc.perform(post("/api/v1/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(user))
-                        .accept(MediaType.APPLICATION_JSON)
-                )
+                        .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.firstName").value("Jan"))
                 .andExpect(jsonPath("$.lastName").value("Kowalski"))
                 .andExpect(jsonPath("$.email").value("jan.kowalski@example.com"));
+    }
 
+    @Test
+    void shouldReturn400WhenCreateUserValidationFails() throws Exception {
+        CreateUserRequest invalid = new CreateUserRequest(
+                "",
+                "Kowalski",
+                "not-an-email",
+                "short",
+                "123"
+        );
+
+        mockMvc.perform(post("/api/v1/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalid)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation failed."))
+                .andExpect(jsonPath("$.fieldErrors").isArray());
     }
 
     @Test
@@ -124,14 +150,25 @@ public class UserControllerTest {
         when(userService.updateUser(1L, user)).thenReturn(userResponseDto);
 
         mockMvc.perform(patch("/api/v1/users/{id}", 1L)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(user))
-                .accept(MediaType.APPLICATION_JSON)
-        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user))
+                        .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.firstName").value("Jan"))
                 .andExpect(jsonPath("$.lastName").value("Kowalski"))
                 .andExpect(jsonPath("$.email").value("jan.kowalski@example.com"));
+    }
+
+    @Test
+    void shouldReturn404WhenUpdatingMissingUser() throws Exception {
+        UpdateUserRequest user = new UpdateUserRequest("Jan", "Kowalski", "123456789");
+        when(userService.updateUser(99L, user))
+                .thenThrow(new UserNotFoundException("User does not exist with provided ID."));
+
+        mockMvc.perform(patch("/api/v1/users/{id}", 99L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isNotFound());
     }
 }

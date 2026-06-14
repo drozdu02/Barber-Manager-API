@@ -1,31 +1,40 @@
 package com.barber_manager.user_service;
 
 import com.barber_manager.user_service.dto.request.CreateUserRequest;
+import com.barber_manager.user_service.dto.request.RegisterRequestDto;
 import com.barber_manager.user_service.dto.request.UpdateUserRequest;
 import com.barber_manager.user_service.dto.response.BarberResponseDto;
 import com.barber_manager.user_service.dto.response.UserCredentialDto;
 import com.barber_manager.user_service.dto.response.UserResponseDto;
 import com.barber_manager.user_service.entity.User;
 import com.barber_manager.user_service.enums.Role;
+import com.barber_manager.user_service.exceptions.UserAlreadyExistsException;
+import com.barber_manager.user_service.exceptions.UserNotFoundException;
+import com.barber_manager.user_service.exceptions.UserServiceLogicException;
 import com.barber_manager.user_service.mapper.UserMapper;
 import com.barber_manager.user_service.repository.UserRepository;
 import com.barber_manager.user_service.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(MockitoExtension.class)
-public class UserServiceTest {
+class UserServiceTest {
 
     @InjectMocks
     private UserService userService;
@@ -37,10 +46,10 @@ public class UserServiceTest {
     private UserMapper userMapper;
 
     @Mock
-    PasswordEncoder passwordEncoder;
+    private PasswordEncoder passwordEncoder;
 
     @Test
-    void shouldReturnUserIfExists(){
+    void shouldReturnUserIfExists() {
         User user = new User();
         user.setId(1L);
 
@@ -51,17 +60,23 @@ public class UserServiceTest {
                 "Kowalski"
         );
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-
         when(userMapper.toUserResponseDto(user)).thenReturn(userResponseDto);
 
         UserResponseDto userResponse = userService.getUserById(1L);
 
-        assertEquals(1L, userResponseDto.id());
+        assertEquals(1L, userResponse.id());
         assertEquals("Jan", userResponse.firstName());
     }
 
     @Test
-    void shouldReturnAllUsersIfExist(){
+    void shouldThrowWhenUserNotFoundById() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(UserNotFoundException.class, () -> userService.getUserById(99L));
+    }
+
+    @Test
+    void shouldReturnAllUsersIfExist() {
         List<User> users = new ArrayList<>();
 
         User user = new User();
@@ -89,7 +104,7 @@ public class UserServiceTest {
     }
 
     @Test
-    void shouldReturnAllBarbers(){
+    void shouldReturnAllBarbers() {
         List<User> users = new ArrayList<>();
         User user = new User();
         user.setId(1L);
@@ -111,13 +126,21 @@ public class UserServiceTest {
     }
 
     @Test
-    void canCreateUser(){
+    void shouldReturnEmptyBarberList() {
+        when(userRepository.findAllByRoleOrderByFirstNameAscLastNameAsc(Role.BARBER)).thenReturn(List.of());
 
+        List<BarberResponseDto> barbers = userService.getBarbers();
+
+        assertEquals(0, barbers.size());
+    }
+
+    @Test
+    void canCreateUser() {
         CreateUserRequest createUserRequest = new CreateUserRequest(
                 "Jan",
                 "Kowalski",
                 "jan.kowalski@example.com",
-                "password",
+                "password123",
                 "123456789"
         );
 
@@ -136,19 +159,16 @@ public class UserServiceTest {
         savedUser.setFirstName("Jan");
         savedUser.setLastName("Kowalski");
 
-
         UserResponseDto userResponseDto = new UserResponseDto(
-            1L,
-            "jan.kowalski@example.com",
-            "Jan",
-            "Kowalski"
+                1L,
+                "jan.kowalski@example.com",
+                "Jan",
+                "Kowalski"
         );
 
         when(userMapper.toEntity(createUserRequest)).thenReturn(user);
         when(userRepository.save(user)).thenReturn(savedUser);
         when(userMapper.toUserResponseDto(savedUser)).thenReturn(userResponseDto);
-
-
 
         UserResponseDto createUserResponse = userService.createUser(createUserRequest);
 
@@ -162,11 +182,11 @@ public class UserServiceTest {
     }
 
     @Test
-    void canUpdateUser(){
+    void canUpdateUser() {
         UpdateUserRequest updateUserRequest = new UpdateUserRequest(
                 "Jan",
                 "Kowalski",
-                "jan.kowalski@example.com"
+                "123456789"
         );
         User existingUser = new User();
         existingUser.setId(1L);
@@ -188,7 +208,6 @@ public class UserServiceTest {
         when(userRepository.save(any(User.class))).thenReturn(updatedUser);
         when(userMapper.toUserResponseDto(updatedUser)).thenReturn(userResponseDto);
 
-
         UserResponseDto updateUserResponseDto = userService.updateUser(1L, updateUserRequest);
         assertEquals(1L, updateUserResponseDto.id());
         assertEquals("Jan", updateUserResponseDto.firstName());
@@ -196,11 +215,19 @@ public class UserServiceTest {
 
         verify(userMapper).updateUserFromDto(updateUserRequest, existingUser);
         verify(userRepository).save(existingUser);
-
     }
 
     @Test
-    void canGetCredentialsByEmail(){
+    void shouldThrowWhenUpdatingMissingUser() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        UpdateUserRequest request = new UpdateUserRequest("Jan", "Kowalski", "123456789");
+
+        assertThrows(UserNotFoundException.class, () -> userService.updateUser(99L, request));
+    }
+
+    @Test
+    void canGetCredentialsByEmail() {
         User user = new User();
         user.setId(1L);
         user.setEmail("jan.kowalski@example.com");
@@ -222,7 +249,17 @@ public class UserServiceTest {
     }
 
     @Test
-    void canGetCredentialsById(){
+    void shouldThrowWhenCredentialsNotFoundByEmail() {
+        when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+        assertThrows(
+                UserNotFoundException.class,
+                () -> userService.getCredentialsByEmail("missing@example.com")
+        );
+    }
+
+    @Test
+    void canGetCredentialsById() {
         User user = new User();
         user.setId(1L);
         user.setEmail("jan.kowalski@example.com");
@@ -233,14 +270,111 @@ public class UserServiceTest {
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
-        UserCredentialDto result = userService.getCredentialsById(
-                1L
-        );
+        UserCredentialDto result = userService.getCredentialsById(1L);
         assertEquals(1L, result.id());
         assertEquals("jan.kowalski@example.com", result.email());
         assertEquals("encoded-password", result.password());
         assertEquals(Role.USER, result.role());
 
         verify(userRepository).findById(1L);
+    }
+
+    @Test
+    void shouldThrowWhenCredentialsNotFoundById() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(UserNotFoundException.class, () -> userService.getCredentialsById(99L));
+    }
+
+    @Test
+    void shouldCreateBarberFromAuth() {
+        RegisterRequestDto request = new RegisterRequestDto(
+                "Jan",
+                "Kowalski",
+                "jan.kowalski@example.com",
+                "password123",
+                "123456789",
+                Role.BARBER
+        );
+
+        when(userRepository.existsByEmail(request.email())).thenReturn(false);
+        when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setId(1L);
+            return saved;
+        });
+
+        UserCredentialDto result = userService.createUserFromAuth(request);
+
+        assertEquals(1L, result.id());
+        assertEquals("jan.kowalski@example.com", result.email());
+        assertEquals("encoded-password", result.password());
+        assertEquals(Role.BARBER, result.role());
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        User persisted = userCaptor.getValue();
+        assertEquals("Jan", persisted.getFirstName());
+        assertEquals("Kowalski", persisted.getLastName());
+        assertEquals("123456789", persisted.getPhoneNumber());
+        assertEquals(Role.BARBER, persisted.getRole());
+        verify(passwordEncoder).encode("password123");
+    }
+
+    @Test
+    void shouldCreateAdminFromAuth() {
+        RegisterRequestDto request = new RegisterRequestDto(
+                "Admin",
+                "User",
+                "admin@example.com",
+                "password123",
+                "987654321",
+                Role.ADMIN
+        );
+
+        when(userRepository.existsByEmail(request.email())).thenReturn(false);
+        when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setId(2L);
+            return saved;
+        });
+
+        UserCredentialDto result = userService.createUserFromAuth(request);
+
+        assertEquals(Role.ADMIN, result.role());
+    }
+
+    @Test
+    void shouldRejectUserRoleInCreateUserFromAuth() {
+        RegisterRequestDto request = new RegisterRequestDto(
+                "Jan",
+                "Kowalski",
+                "jan.kowalski@example.com",
+                "password123",
+                "123456789",
+                Role.USER
+        );
+
+        assertThrows(UserServiceLogicException.class, () -> userService.createUserFromAuth(request));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void shouldRejectDuplicateEmailInCreateUserFromAuth() {
+        RegisterRequestDto request = new RegisterRequestDto(
+                "Jan",
+                "Kowalski",
+                "jan.kowalski@example.com",
+                "password123",
+                "123456789",
+                Role.BARBER
+        );
+
+        when(userRepository.existsByEmail(request.email())).thenReturn(true);
+
+        assertThrows(UserAlreadyExistsException.class, () -> userService.createUserFromAuth(request));
+        verify(userRepository, never()).save(any(User.class));
     }
 }
