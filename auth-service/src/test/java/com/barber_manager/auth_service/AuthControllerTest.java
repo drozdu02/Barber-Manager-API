@@ -9,22 +9,28 @@ import com.barber_manager.auth_service.dto.request.RegisterRequestDto;
 import com.barber_manager.auth_service.dto.response.StaffAccountResponse;
 import com.barber_manager.auth_service.dto.response.TokenResponseDto;
 import com.barber_manager.auth_service.enums.Role;
+import com.barber_manager.auth_service.error.GlobalExceptionHandler;
+import com.barber_manager.auth_service.exceptions.InvalidRegistrationException;
+import com.barber_manager.auth_service.exceptions.StaffAccessDeniedException;
+import com.barber_manager.auth_service.exceptions.UserAlreadyExistsException;
 import com.barber_manager.auth_service.service.AuthService;
 import com.barber_manager.auth_service.web.RefreshTokenCookieService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Duration;
-import java.time.Instant;
+import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -32,8 +38,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AuthController.class)
-@Import(SecurityConfig.class)
-public class AuthControllerTest {
+@Import({SecurityConfig.class, GlobalExceptionHandler.class})
+class AuthControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -53,7 +59,7 @@ public class AuthControllerTest {
                 "Jan",
                 "Kowalski",
                 "jan.kowalski@example.com",
-                "password",
+                "password123",
                 "123456789",
                 Role.BARBER
         );
@@ -67,12 +73,10 @@ public class AuthControllerTest {
         when(authService.register(registerRequestDto)).thenReturn(staffAccountResponse);
 
         mockMvc.perform(post("/auth/register")
-                .accept(MediaType.APPLICATION_JSON)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerRequestDto))
-                .with(csrf())
-
-        )
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registerRequestDto))
+                        .with(csrf()))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.firstName").value("Jan"))
@@ -82,76 +86,196 @@ public class AuthControllerTest {
     }
 
     @Test
+    void shouldReturn400WhenRegisterValidationFails() throws Exception {
+        RegisterRequestDto invalid = new RegisterRequestDto(
+                "",
+                "Kowalski",
+                "not-an-email",
+                "short",
+                "123",
+                Role.BARBER
+        );
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalid))
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation failed."));
+    }
+
+    @Test
+    void shouldReturn400WhenRegisterRoleInvalid() throws Exception {
+        RegisterRequestDto registerRequestDto = new RegisterRequestDto(
+                "Jan",
+                "Kowalski",
+                "jan.kowalski@example.com",
+                "password123",
+                "123456789",
+                Role.USER
+        );
+        when(authService.register(registerRequestDto)).thenThrow(new InvalidRegistrationException());
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registerRequestDto))
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Only barber and administrator accounts can be created."));
+    }
+
+    @Test
+    void shouldReturn409WhenRegisterEmailExists() throws Exception {
+        RegisterRequestDto registerRequestDto = new RegisterRequestDto(
+                "Jan",
+                "Kowalski",
+                "jan.kowalski@example.com",
+                "password123",
+                "123456789",
+                Role.BARBER
+        );
+        when(authService.register(registerRequestDto))
+                .thenThrow(new UserAlreadyExistsException("User already exists with provided email."));
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registerRequestDto))
+                        .with(csrf()))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     void shouldLogin() throws Exception {
         LoginRequestDto loginRequestDto = new LoginRequestDto(
                 "jan.kowalski@example.com",
-                "password"
+                "password123"
         );
         TokenResponseDto tokenResponseDto = new TokenResponseDto(
                 "access_token",
                 "refresh-token",
-                "token-type",
-                1L
+                "Bearer",
+                900L
         );
         when(authService.login(loginRequestDto)).thenReturn(tokenResponseDto);
 
         mockMvc.perform(post("/auth/login")
-                .accept(MediaType.APPLICATION_JSON)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequestDto))
-                .with(csrf())
-        )
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequestDto))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("access_token"))
-                .andExpect(jsonPath("$.refresh_token").doesNotExist());
+                .andExpect(jsonPath("$.refreshToken").doesNotExist());
+
+        verify(refreshTokenCookieService).setRefreshToken(any(), eq("refresh-token"), eq(Duration.ofDays(7)));
     }
 
     @Test
-    void shouldLogout() throws Exception {
-        LogoutRequestDto logoutRequestDto = new LogoutRequestDto(
-                "refresh-token"
-        );
+    void shouldReturn400WhenLoginValidationFails() throws Exception {
+        LoginRequestDto invalid = new LoginRequestDto("", "password123");
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalid))
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation failed."));
+    }
+
+    @Test
+    void shouldReturn401WhenLoginFails() throws Exception {
+        LoginRequestDto loginRequestDto = new LoginRequestDto("jan.kowalski@example.com", "wrong");
+        when(authService.login(loginRequestDto)).thenThrow(new BadCredentialsException("Invalid password."));
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequestDto))
+                        .with(csrf()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid password."));
+    }
+
+    @Test
+    void shouldReturn403WhenStaffAccessDenied() throws Exception {
+        LoginRequestDto loginRequestDto = new LoginRequestDto("client@example.com", "password123");
+        when(authService.login(loginRequestDto)).thenThrow(new StaffAccessDeniedException());
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequestDto))
+                        .with(csrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Login is restricted to barber and administrator accounts."));
+    }
+
+    @Test
+    void shouldLogoutWithBodyToken() throws Exception {
+        LogoutRequestDto logoutRequestDto = new LogoutRequestDto("refresh-token");
 
         mockMvc.perform(post("/auth/logout")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(logoutRequestDto))
-                .with(csrf())
-        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(logoutRequestDto))
+                        .with(csrf()))
                 .andExpect(status().isNoContent());
 
-        verify(authService, times(1)).logoutByRefreshToken("refresh-token");
-        verify(refreshTokenCookieService, times(1)).clearRefreshToken(any());
+        verify(authService).logoutByRefreshToken("refresh-token");
+        verify(refreshTokenCookieService).clearRefreshToken(any());
         verify(refreshTokenCookieService, never()).extractRefreshToken(any());
     }
 
     @Test
-    void shouldRefresh() throws Exception {
-        RefreshRequestDto refreshRequestDto = new RefreshRequestDto(
-                "refresh-token"
-        );
+    void shouldLogoutWithCookieToken() throws Exception {
+        when(refreshTokenCookieService.extractRefreshToken(any())).thenReturn(Optional.of("cookie-token"));
 
+        mockMvc.perform(post("/auth/logout").with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(authService).logoutByRefreshToken("cookie-token");
+        verify(refreshTokenCookieService).clearRefreshToken(any());
+    }
+
+    @Test
+    void shouldRefreshWithBodyToken() throws Exception {
+        RefreshRequestDto refreshRequestDto = new RefreshRequestDto("refresh-token");
         TokenResponseDto tokenResponseDto = new TokenResponseDto(
                 "new-access-token",
                 "new-refresh-token",
                 "Bearer",
-                1L
+                900L
         );
         when(authService.refreshToken("refresh-token")).thenReturn(tokenResponseDto);
 
         mockMvc.perform(post("/auth/refresh")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(refreshRequestDto))
-                .with(csrf())
-        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(refreshRequestDto))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("new-access-token"))
                 .andExpect(jsonPath("$.refreshToken").doesNotExist());
 
-        verify(refreshTokenCookieService, times(1)).setRefreshToken(
-                any(HttpServletResponse.class),
-                eq("new-refresh-token"),
-                eq(Duration.ofDays(7)));
-
+        verify(refreshTokenCookieService).setRefreshToken(any(), eq("new-refresh-token"), eq(Duration.ofDays(7)));
     }
 
+    @Test
+    void shouldRefreshWithCookieToken() throws Exception {
+        when(refreshTokenCookieService.extractRefreshToken(any())).thenReturn(Optional.of("cookie-token"));
+        when(authService.refreshToken("cookie-token")).thenReturn(TokenResponseDto.of("access", "refresh"));
+
+        mockMvc.perform(post("/auth/refresh")
+                        .cookie(new Cookie("refreshToken", "cookie-token"))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("access"));
+
+        verify(authService).refreshToken("cookie-token");
+    }
+
+    @Test
+    void shouldReturn400WhenRefreshTokenMissing() throws Exception {
+        when(refreshTokenCookieService.extractRefreshToken(any())).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/auth/refresh").with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Refresh token cookie missing."));
+    }
 }

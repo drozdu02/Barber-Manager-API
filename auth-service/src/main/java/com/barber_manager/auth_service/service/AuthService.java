@@ -57,7 +57,7 @@ public class AuthService {
         try {
             user = userClient.createUser(registerRequestDto);
         }catch (FeignException.Conflict e){
-            throw new UserAlreadyExistsException("Invalid credentials.");
+            throw new UserAlreadyExistsException("User already exists with provided email.");
         }
         return new StaffAccountResponse(
                 user.id(),

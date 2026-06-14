@@ -54,13 +54,33 @@ public class JwtServiceTest {
     }
 
     @Test
-    void shouldThrowSignatureExceptionWhenTokenIsTampered() throws Exception {
+    void shouldGenerateAndParseRefreshToken() throws Exception {
+        String email = "jan.kowalski@example.com";
         when(keyPair.getPrivate()).thenReturn(keyPairForTests.getPrivate());
         when(keyPair.getPublic()).thenReturn(keyPairForTests.getPublic());
 
-        String validToken = jwtService.generateAccessToken("jan.kowalski@example.com", "BARBER");
-        String tamperedToken = validToken.substring(0, validToken.length() - 1) + "X";
+        String token = jwtService.generateRefreshToken(email);
 
-        assertThrows(SignatureException.class, () -> jwtService.parseToken(tamperedToken));
+        assertNotNull(token);
+        Claims claims = jwtService.parseToken(token);
+
+        assertEquals(email, claims.getSubject());
+        assertEquals("http://localhost:8082", claims.getIssuer());
+        assertNull(claims.get("role"));
+        assertTrue(claims.getExpiration().after(new Date()));
+    }
+
+    @Test
+    void shouldRejectTokenSignedWithDifferentKey() throws Exception {
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(2048);
+        KeyPair otherKeyPair = keyPairGenerator.generateKeyPair();
+
+        when(keyPair.getPrivate()).thenReturn(keyPairForTests.getPrivate());
+        when(keyPair.getPublic()).thenReturn(otherKeyPair.getPublic());
+
+        String token = jwtService.generateAccessToken("jan.kowalski@example.com", "BARBER");
+
+        assertThrows(SignatureException.class, () -> jwtService.parseToken(token));
     }
 }
