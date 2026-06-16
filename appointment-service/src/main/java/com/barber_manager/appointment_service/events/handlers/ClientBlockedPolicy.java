@@ -1,12 +1,12 @@
 package com.barber_manager.appointment_service.events.handlers;
 
+import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
 import com.barber_manager.appointment_service.entity.Appointment;
 import com.barber_manager.appointment_service.enums.AppointmentStatus;
 import com.barber_manager.appointment_service.events.AppointmentCanceledEvent;
 import com.barber_manager.appointment_service.events.CancellationSource;
 import com.barber_manager.appointment_service.events.ClientBlockedEvent;
 import com.barber_manager.appointment_service.events.DomainEventPublisher;
-import com.barber_manager.appointment_service.repository.AppointmentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -20,7 +20,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 public class ClientBlockedPolicy {
 
-    private final AppointmentRepository appointmentRepository;
+    private final IAppointmentRepository appointmentRepository;
     private final DomainEventPublisher domainEventPublisher;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

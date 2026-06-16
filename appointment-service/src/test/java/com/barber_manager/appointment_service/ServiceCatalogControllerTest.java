@@ -1,8 +1,8 @@
 package com.barber_manager.appointment_service;
 
-import com.barber_manager.appointment_service.controller.ServiceController;
+import com.barber_manager.appointment_service.catalog.port.in.IServiceCatalogController;
+import com.barber_manager.appointment_service.controller.ServiceCatalogController;
 import com.barber_manager.appointment_service.dto.ServiceResponse;
-import com.barber_manager.appointment_service.service.ServiceCatalogService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -18,19 +18,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(ServiceController.class)
+@WebMvcTest(ServiceCatalogController.class)
 @AutoConfigureMockMvc(addFilters = false)
-class ServiceControllerTest {
+class ServiceCatalogControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private ServiceCatalogService serviceCatalogService;
+    private IServiceCatalogController serviceCatalogController;
 
     @Test
     void shouldListServices() throws Exception {
-        when(serviceCatalogService.list()).thenReturn(List.of(
+        when(serviceCatalogController.list()).thenReturn(List.of(
                 new ServiceResponse(1L, "Haircut", new BigDecimal("60.00"), 2)
         ));
 

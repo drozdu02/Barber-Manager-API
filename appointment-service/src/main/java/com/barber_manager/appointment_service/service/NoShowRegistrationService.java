@@ -1,13 +1,14 @@
 package com.barber_manager.appointment_service.service;
 
+import com.barber_manager.appointment_service.booking.port.in.IClientPhoneProfileController;
+import com.barber_manager.appointment_service.booking.port.out.IClientPhoneProfileRepository;
+import com.barber_manager.appointment_service.booking.port.out.INoShowIncidentRepository;
 import com.barber_manager.appointment_service.dto.admin.ClientPhoneProfileResponse;
 import com.barber_manager.appointment_service.dto.admin.NoShowIncidentResponse;
 import com.barber_manager.appointment_service.entity.Appointment;
 import com.barber_manager.appointment_service.entity.ClientPhoneProfile;
 import com.barber_manager.appointment_service.entity.NoShowIncident;
 import com.barber_manager.appointment_service.exception.NotFoundException;
-import com.barber_manager.appointment_service.repository.ClientPhoneProfileRepository;
-import com.barber_manager.appointment_service.repository.NoShowIncidentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,12 +17,13 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class NoShowRegistrationService {
+public class NoShowRegistrationService implements IClientPhoneProfileController {
 
-    private final ClientPhoneProfileRepository clientPhoneProfileRepository;
-    private final NoShowIncidentRepository noShowIncidentRepository;
+    private final IClientPhoneProfileRepository clientPhoneProfileRepository;
+    private final INoShowIncidentRepository noShowIncidentRepository;
     private final ClientBlockService clientBlockService;
 
+    @Override
     @Transactional
     public void registerNoShow(Appointment appointment) {
         if (noShowIncidentRepository.existsByAppointmentId(appointment.getId())) {
@@ -50,6 +52,7 @@ public class NoShowRegistrationService {
         clientBlockService.applyBlockIfNoShowThresholdExceeded(phoneNumber, profile.getNoShowCount());
     }
 
+    @Override
     public ClientPhoneProfileResponse getPhoneProfile(String phoneNumber) {
         ClientPhoneProfile profile = clientPhoneProfileRepository.findByPhoneNumber(phoneNumber)
                 .orElseThrow(() -> new NotFoundException("Phone profile not found."));

@@ -1,7 +1,7 @@
 package com.barber_manager.appointment_service.controller;
 
+import com.barber_manager.appointment_service.schedule.port.in.IAvailabilityController;
 import com.barber_manager.appointment_service.dto.AvailabilityResponse;
-import com.barber_manager.appointment_service.service.AvailabilityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AvailabilityController {
 
-    private final AvailabilityService service;
+    private final IAvailabilityController availabilityController;
 
     @GetMapping
     public ResponseEntity<AvailabilityResponse> availability(
@@ -27,7 +27,6 @@ public class AvailabilityController {
             @RequestParam(defaultValue = "false") boolean any,
             @RequestParam(required = false) List<Long> barberIds
     ) {
-        return ResponseEntity.ok(service.getAvailability(date, serviceId, barberId, any, barberIds));
+        return ResponseEntity.ok(availabilityController.getAvailability(date, serviceId, barberId, any, barberIds));
     }
 }
-

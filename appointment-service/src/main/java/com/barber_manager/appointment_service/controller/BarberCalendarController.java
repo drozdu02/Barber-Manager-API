@@ -1,7 +1,7 @@
 package com.barber_manager.appointment_service.controller;
 
+import com.barber_manager.appointment_service.booking.port.in.IAppointmentController;
 import com.barber_manager.appointment_service.dto.StaffAppointmentResponse;
-import com.barber_manager.appointment_service.service.AppointmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BarberCalendarController {
 
-    private final AppointmentService service;
+    private final IAppointmentController appointmentController;
 
     @GetMapping
     public ResponseEntity<List<StaffAppointmentResponse>> calendar(
@@ -25,7 +25,6 @@ public class BarberCalendarController {
             @RequestParam LocalDateTime from,
             @RequestParam LocalDateTime to
     ) {
-        return ResponseEntity.ok(service.getBarberCalendar(barberId, from, to));
+        return ResponseEntity.ok(appointmentController.getBarberCalendar(barberId, from, to));
     }
 }
-

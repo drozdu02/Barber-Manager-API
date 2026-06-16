@@ -1,5 +1,8 @@
 package com.barber_manager.appointment_service.service;
 
+import com.barber_manager.appointment_service.booking.port.in.IClientBlockController;
+import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
+import com.barber_manager.appointment_service.booking.port.out.IBlockedPhoneNumberRepository;
 import com.barber_manager.appointment_service.config.ClientBlockProperties;
 import com.barber_manager.appointment_service.dto.admin.BlockPhoneRequest;
 import com.barber_manager.appointment_service.dto.admin.BlockPhoneResponse;
@@ -7,8 +10,6 @@ import com.barber_manager.appointment_service.entity.Appointment;
 import com.barber_manager.appointment_service.entity.BlockedPhoneNumber;
 import com.barber_manager.appointment_service.events.ClientBlockedEvent;
 import com.barber_manager.appointment_service.events.DomainEventPublisher;
-import com.barber_manager.appointment_service.repository.AppointmentRepository;
-import com.barber_manager.appointment_service.repository.BlockedPhoneNumberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,13 +20,14 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class ClientBlockService {
+public class ClientBlockService implements IClientBlockController {
 
-    private final BlockedPhoneNumberRepository blockedPhoneNumberRepository;
-    private final AppointmentRepository appointmentRepository;
+    private final IBlockedPhoneNumberRepository blockedPhoneNumberRepository;
+    private final IAppointmentRepository appointmentRepository;
     private final ClientBlockProperties clientBlockProperties;
     private final DomainEventPublisher domainEventPublisher;
 
+    @Override
     @Transactional
     public BlockPhoneResponse blockPhone(BlockPhoneRequest request) {
         return blockPhone(request.phoneNumber(), request.reason(), false);
@@ -45,6 +47,7 @@ public class ClientBlockService {
         return Optional.of(blockPhone(phoneNumber, reason, true));
     }
 
+    @Override
     @Transactional
     public void unblockPhone(String phoneNumber) {
         blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue(phoneNumber).ifPresent(block -> {

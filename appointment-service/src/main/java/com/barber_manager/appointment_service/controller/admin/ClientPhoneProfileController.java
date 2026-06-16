@@ -1,7 +1,7 @@
 package com.barber_manager.appointment_service.controller.admin;
 
+import com.barber_manager.appointment_service.booking.port.in.IClientPhoneProfileController;
 import com.barber_manager.appointment_service.dto.admin.ClientPhoneProfileResponse;
-import com.barber_manager.appointment_service.service.NoShowRegistrationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,14 +12,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/admin/phone-profiles")
 @RequiredArgsConstructor
-public class AdminPhoneProfileController {
+public class ClientPhoneProfileController {
 
-    private final NoShowRegistrationService noShowRegistrationService;
+    private final IClientPhoneProfileController clientPhoneProfileController;
 
     @GetMapping("/{phoneNumber}")
     public ResponseEntity<ClientPhoneProfileResponse> getProfile(
             @PathVariable String phoneNumber
     ) {
-        return ResponseEntity.ok(noShowRegistrationService.getPhoneProfile(phoneNumber));
+        return ResponseEntity.ok(clientPhoneProfileController.getPhoneProfile(phoneNumber));
     }
 }

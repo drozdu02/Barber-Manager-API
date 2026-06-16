@@ -2,7 +2,7 @@ package com.barber_manager.appointment_service.controller.admin;
 
 import com.barber_manager.appointment_service.dto.admin.CreateTimeOffRequest;
 import com.barber_manager.appointment_service.dto.admin.TimeOffResponse;
-import com.barber_manager.appointment_service.service.WorkScheduleService;
+import com.barber_manager.appointment_service.schedule.port.in.IWorkScheduleController;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,23 +16,23 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminTimeOffController {
 
-    private final WorkScheduleService workScheduleService;
+    private final IWorkScheduleController workScheduleController;
 
     @GetMapping
     public ResponseEntity<List<TimeOffResponse>> list(@RequestParam Long barberId) {
-        return ResponseEntity.ok(workScheduleService.listTimeOff(barberId));
+        return ResponseEntity.ok(workScheduleController.listTimeOff(barberId));
     }
 
     @PostMapping
     public ResponseEntity<TimeOffResponse> create(
             @Valid @RequestBody CreateTimeOffRequest request
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(workScheduleService.createTimeOff(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(workScheduleController.createTimeOff(request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        workScheduleService.deleteTimeOff(id);
+        workScheduleController.deleteTimeOff(id);
         return ResponseEntity.noContent().build();
     }
 }

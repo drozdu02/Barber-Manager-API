@@ -5,7 +5,7 @@ import com.barber_manager.appointment_service.dto.AvailabilityResponse;
 import com.barber_manager.appointment_service.dto.AvailabilitySlotResponse;
 import com.barber_manager.appointment_service.error.GlobalExceptionHandler;
 import com.barber_manager.appointment_service.exception.BusinessRuleException;
-import com.barber_manager.appointment_service.service.AvailabilityService;
+import com.barber_manager.appointment_service.schedule.port.in.IAvailabilityController;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -35,7 +35,7 @@ class AvailabilityControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private AvailabilityService availabilityService;
+    private IAvailabilityController availabilityController;
 
     @Test
     void shouldReturnAvailabilityForBarber() throws Exception {
@@ -51,7 +51,7 @@ class AvailabilityControllerTest {
                         List.of(10L)
                 ))
         );
-        when(availabilityService.getAvailability(date, 1L, 10L, false, null)).thenReturn(response);
+        when(availabilityController.getAvailability(date, 1L, 10L, false, null)).thenReturn(response);
 
         mockMvc.perform(get("/availability")
                         .param("date", "2026-06-10")
@@ -66,7 +66,7 @@ class AvailabilityControllerTest {
     void shouldReturnAvailabilityForAnyBarber() throws Exception {
         LocalDate date = LocalDate.of(2026, 6, 10);
         AvailabilityResponse response = new AvailabilityResponse(date, 1L, null, true, List.of());
-        when(availabilityService.getAvailability(date, 1L, null, true, List.of(10L, 11L))).thenReturn(response);
+        when(availabilityController.getAvailability(date, 1L, null, true, List.of(10L, 11L))).thenReturn(response);
 
         mockMvc.perform(get("/availability")
                         .param("date", "2026-06-10")
@@ -79,7 +79,7 @@ class AvailabilityControllerTest {
 
     @Test
     void shouldReturn400WhenAvailabilityBusinessRuleFails() throws Exception {
-        when(availabilityService.getAvailability(
+        when(availabilityController.getAvailability(
                 eq(LocalDate.of(2026, 6, 10)), eq(1L), isNull(), eq(true), isNull()))
                 .thenThrow(new BusinessRuleException("When any=true you must provide barberIds."));
 

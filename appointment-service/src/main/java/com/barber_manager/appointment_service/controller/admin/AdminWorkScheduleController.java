@@ -4,7 +4,7 @@ import com.barber_manager.appointment_service.dto.admin.CreateWorkScheduleReques
 import com.barber_manager.appointment_service.dto.admin.ReplaceWorkScheduleRequest;
 import com.barber_manager.appointment_service.dto.admin.UpdateWorkScheduleRequest;
 import com.barber_manager.appointment_service.dto.admin.WorkScheduleResponse;
-import com.barber_manager.appointment_service.service.WorkScheduleService;
+import com.barber_manager.appointment_service.schedule.port.in.IWorkScheduleController;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,25 +18,25 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminWorkScheduleController {
 
-    private final WorkScheduleService workScheduleService;
+    private final IWorkScheduleController workScheduleController;
 
     @GetMapping
     public ResponseEntity<List<WorkScheduleResponse>> list(@RequestParam Long barberId) {
-        return ResponseEntity.ok(workScheduleService.listWorkSchedules(barberId));
+        return ResponseEntity.ok(workScheduleController.listWorkSchedules(barberId));
     }
 
     @PostMapping
     public ResponseEntity<WorkScheduleResponse> create(
             @Valid @RequestBody CreateWorkScheduleRequest request
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(workScheduleService.createWorkSchedule(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(workScheduleController.createWorkSchedule(request));
     }
 
     @PutMapping
     public ResponseEntity<List<WorkScheduleResponse>> replace(
             @Valid @RequestBody ReplaceWorkScheduleRequest request
     ) {
-        return ResponseEntity.ok(workScheduleService.replaceWorkSchedules(request));
+        return ResponseEntity.ok(workScheduleController.replaceWorkSchedules(request));
     }
 
     @PatchMapping("/{id}")
@@ -44,12 +44,12 @@ public class AdminWorkScheduleController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateWorkScheduleRequest request
     ) {
-        return ResponseEntity.ok(workScheduleService.updateWorkSchedule(id, request));
+        return ResponseEntity.ok(workScheduleController.updateWorkSchedule(id, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        workScheduleService.deleteWorkSchedule(id);
+        workScheduleController.deleteWorkSchedule(id);
         return ResponseEntity.noContent().build();
     }
 }

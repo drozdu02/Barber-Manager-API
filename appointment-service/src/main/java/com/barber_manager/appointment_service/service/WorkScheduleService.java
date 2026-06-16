@@ -1,5 +1,7 @@
 package com.barber_manager.appointment_service.service;
 
+import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
+import com.barber_manager.appointment_service.dto.admin.CreateBreakRequest;
 import com.barber_manager.appointment_service.dto.admin.CreateTimeOffRequest;
 import com.barber_manager.appointment_service.dto.admin.CreateWorkScheduleRequest;
 import com.barber_manager.appointment_service.dto.admin.ReplaceWorkScheduleRequest;
@@ -7,13 +9,15 @@ import com.barber_manager.appointment_service.dto.admin.TimeOffResponse;
 import com.barber_manager.appointment_service.dto.admin.UpdateWorkScheduleRequest;
 import com.barber_manager.appointment_service.dto.admin.WorkScheduleResponse;
 import com.barber_manager.appointment_service.entity.Appointment;
+import com.barber_manager.appointment_service.entity.BarberBreak;
 import com.barber_manager.appointment_service.entity.BarberTimeOff;
 import com.barber_manager.appointment_service.entity.BarberWorkSchedule;
 import com.barber_manager.appointment_service.exception.BusinessRuleException;
 import com.barber_manager.appointment_service.exception.NotFoundException;
-import com.barber_manager.appointment_service.repository.AppointmentRepository;
-import com.barber_manager.appointment_service.repository.BarberTimeOffRepository;
-import com.barber_manager.appointment_service.repository.BarberWorkScheduleRepository;
+import com.barber_manager.appointment_service.schedule.port.in.IWorkScheduleController;
+import com.barber_manager.appointment_service.schedule.port.out.IBarberBreakRepository;
+import com.barber_manager.appointment_service.schedule.port.out.IBarberTimeOffRepository;
+import com.barber_manager.appointment_service.schedule.port.out.IWorkScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,25 +26,27 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class WorkScheduleService {
+public class WorkScheduleService implements IWorkScheduleController {
 
-    private final BarberWorkScheduleRepository workScheduleRepository;
-    private final BarberTimeOffRepository timeOffRepository;
-    private final AppointmentRepository appointmentRepository;
+    private final IWorkScheduleRepository workScheduleRepository;
+    private final IBarberTimeOffRepository timeOffRepository;
+    private final IBarberBreakRepository barberBreakRepository;
+    private final IAppointmentRepository appointmentRepository;
 
+    @Override
     public List<WorkScheduleResponse> listWorkSchedules(Long barberId) {
         return workScheduleRepository.findAllByBarberIdOrderByDayOfWeekAsc(barberId).stream()
                 .map(this::toWorkScheduleResponse)
                 .toList();
     }
 
+    @Override
     @Transactional
     public WorkScheduleResponse createWorkSchedule(CreateWorkScheduleRequest request) {
         validateHours(request.openTime(), request.closeTime());
@@ -57,6 +63,7 @@ public class WorkScheduleService {
         return toWorkScheduleResponse(workScheduleRepository.save(schedule));
     }
 
+    @Override
     @Transactional
     public WorkScheduleResponse updateWorkSchedule(Long id, UpdateWorkScheduleRequest request) {
         validateHours(request.openTime(), request.closeTime());
@@ -74,6 +81,7 @@ public class WorkScheduleService {
         return toWorkScheduleResponse(workScheduleRepository.save(schedule));
     }
 
+    @Override
     @Transactional
     public List<WorkScheduleResponse> replaceWorkSchedules(ReplaceWorkScheduleRequest request) {
         long distinctDays = request.entries().stream()
@@ -118,6 +126,7 @@ public class WorkScheduleService {
                 .toList();
     }
 
+    @Override
     @Transactional
     public void deleteWorkSchedule(Long id) {
         BarberWorkSchedule schedule = workScheduleRepository.findById(id)
@@ -126,12 +135,14 @@ public class WorkScheduleService {
         workScheduleRepository.delete(schedule);
     }
 
+    @Override
     public List<TimeOffResponse> listTimeOff(Long barberId) {
         return timeOffRepository.findAllByBarberIdOrderByStartDateAsc(barberId).stream()
                 .map(this::toTimeOffResponse)
                 .toList();
     }
 
+    @Override
     @Transactional
     public TimeOffResponse createTimeOff(CreateTimeOffRequest request) {
         if (request.endDate().isBefore(request.startDate())) {
@@ -147,12 +158,32 @@ public class WorkScheduleService {
         return toTimeOffResponse(timeOffRepository.save(timeOff));
     }
 
+    @Override
     @Transactional
     public void deleteTimeOff(Long id) {
         if (!timeOffRepository.existsById(id)) {
             throw new NotFoundException("Time off entry not found.");
         }
         timeOffRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public BarberBreak createBreak(CreateBreakRequest request) {
+        if (!request.endTime().isAfter(request.startTime())) {
+            throw new BusinessRuleException("endTime must be after startTime.");
+        }
+        BarberBreak barberBreak = new BarberBreak(null, request.barberId(), request.startTime(), request.endTime());
+        return barberBreakRepository.save(barberBreak);
+    }
+
+    @Override
+    @Transactional
+    public void deleteBreak(Long id) {
+        if (barberBreakRepository.findById(id).isEmpty()) {
+            throw new NotFoundException("Break not found.");
+        }
+        barberBreakRepository.deleteById(id);
     }
 
     private void validateHours(LocalTime openTime, LocalTime closeTime) {

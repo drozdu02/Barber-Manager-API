@@ -4,9 +4,10 @@ import com.barber_manager.appointment_service.dto.admin.CreateWorkScheduleReques
 import com.barber_manager.appointment_service.dto.admin.WorkScheduleResponse;
 import com.barber_manager.appointment_service.entity.BarberWorkSchedule;
 import com.barber_manager.appointment_service.exception.BusinessRuleException;
-import com.barber_manager.appointment_service.repository.AppointmentRepository;
-import com.barber_manager.appointment_service.repository.BarberTimeOffRepository;
-import com.barber_manager.appointment_service.repository.BarberWorkScheduleRepository;
+import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
+import com.barber_manager.appointment_service.schedule.port.out.IBarberBreakRepository;
+import com.barber_manager.appointment_service.schedule.port.out.IBarberTimeOffRepository;
+import com.barber_manager.appointment_service.schedule.port.out.IWorkScheduleRepository;
 import com.barber_manager.appointment_service.service.WorkScheduleService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,13 +35,16 @@ class WorkScheduleServiceTest {
     private WorkScheduleService workScheduleService;
 
     @Mock
-    private BarberWorkScheduleRepository workScheduleRepository;
+    private IWorkScheduleRepository workScheduleRepository;
 
     @Mock
-    private BarberTimeOffRepository timeOffRepository;
+    private IBarberTimeOffRepository timeOffRepository;
 
     @Mock
-    private AppointmentRepository appointmentRepository;
+    private IBarberBreakRepository barberBreakRepository;
+
+    @Mock
+    private IAppointmentRepository appointmentRepository;
 
     @Test
     void shouldCreateWorkSchedule() {

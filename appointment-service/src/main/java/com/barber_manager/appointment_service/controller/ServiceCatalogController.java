@@ -1,7 +1,7 @@
 package com.barber_manager.appointment_service.controller;
 
+import com.barber_manager.appointment_service.catalog.port.in.IServiceCatalogController;
 import com.barber_manager.appointment_service.dto.ServiceResponse;
-import com.barber_manager.appointment_service.service.ServiceCatalogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,12 +13,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/services")
 @RequiredArgsConstructor
-public class ServiceController {
+public class ServiceCatalogController {
 
-    private final ServiceCatalogService serviceCatalogService;
+    private final IServiceCatalogController serviceCatalogController;
 
     @GetMapping
     public ResponseEntity<List<ServiceResponse>> list() {
-        return ResponseEntity.ok(serviceCatalogService.list());
+        return ResponseEntity.ok(serviceCatalogController.list());
     }
 }

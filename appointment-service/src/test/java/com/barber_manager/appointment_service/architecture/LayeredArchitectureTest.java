@@ -8,9 +8,10 @@ import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
-@DisplayName("Architektura: appointment-service (czysta architektura)")
+@DisplayName("Architektura: appointment-service (heksagonalna)")
 class LayeredArchitectureTest {
 
     private static final JavaClasses CLASSES = new ClassFileImporter()
@@ -18,29 +19,47 @@ class LayeredArchitectureTest {
             .importPackagesOf(AppointmentServiceApplication.class);
 
     @Test
-    void servicesShouldNotDependOnControllers() {
+    void controllersShouldDependOnInboundPortsNotConcreteServices() {
         ArchRule rule = noClasses()
-                .that().resideInAPackage("..service..")
-                .should().accessClassesThat().resideInAPackage("..controller..");
+                .that().resideInAPackage("..controller..")
+                .should().dependOnClassesThat().resideInAPackage("..service..");
 
         rule.check(CLASSES);
     }
 
     @Test
-    void publicControllersShouldNotAccessRepositories() {
+    void outboundAdaptersShouldResideInInfrastructure() {
+        ArchRule rule = classes()
+                .that().haveSimpleNameEndingWith("Adapter")
+                .and().resideInAPackage("..adapter.out..")
+                .should().resideInAPackage("..infrastructure..");
+
+        rule.check(CLASSES);
+    }
+
+    @Test
+    void applicationServicesShouldNotAccessJpaRepositoriesDirectly() {
         ArchRule rule = noClasses()
-                .that().resideInAPackage("..controller..")
-                .and().resideOutsideOfPackage("..controller.admin..")
+                .that().resideInAPackage("..service..")
                 .should().accessClassesThat().resideInAPackage("..repository..");
 
         rule.check(CLASSES);
     }
 
     @Test
-    void repositoriesShouldNotDependOnServicesOrControllers() {
+    void domainServicesShouldNotAccessJpaRepositoriesDirectly() {
         ArchRule rule = noClasses()
-                .that().resideInAPackage("..repository..")
-                .should().accessClassesThat().resideInAnyPackage("..service..", "..controller..");
+                .that().resideInAPackage("..schedule.domain..")
+                .should().accessClassesThat().resideInAPackage("..repository..");
+
+        rule.check(CLASSES);
+    }
+
+    @Test
+    void domainServicesShouldNotAccessControllers() {
+        ArchRule rule = noClasses()
+                .that().resideInAPackage("..schedule.domain..")
+                .should().accessClassesThat().resideInAPackage("..controller..");
 
         rule.check(CLASSES);
     }

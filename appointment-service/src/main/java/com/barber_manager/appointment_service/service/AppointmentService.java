@@ -1,5 +1,10 @@
 package com.barber_manager.appointment_service.service;
 
+import com.barber_manager.appointment_service.booking.port.in.IAppointmentController;
+import com.barber_manager.appointment_service.booking.port.in.IClientPhoneProfileController;
+import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
+import com.barber_manager.appointment_service.booking.port.out.IBlockedPhoneNumberRepository;
+import com.barber_manager.appointment_service.catalog.port.out.IServiceCatalogRepository;
 import com.barber_manager.appointment_service.dto.AppointmentResponse;
 import com.barber_manager.appointment_service.dto.BarberAssignment;
 import com.barber_manager.appointment_service.dto.CreateAppointmentRequest;
@@ -13,9 +18,7 @@ import com.barber_manager.appointment_service.events.CancellationSource;
 import com.barber_manager.appointment_service.events.DomainEventPublisher;
 import com.barber_manager.appointment_service.exception.BusinessRuleException;
 import com.barber_manager.appointment_service.exception.NotFoundException;
-import com.barber_manager.appointment_service.repository.AppointmentRepository;
-import com.barber_manager.appointment_service.repository.BlockedPhoneNumberRepository;
-import com.barber_manager.appointment_service.repository.ServiceRepository;
+import com.barber_manager.appointment_service.schedule.domain.AvailabilityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,22 +29,23 @@ import java.util.List;
 
 @org.springframework.stereotype.Service
 @RequiredArgsConstructor
-public class AppointmentService {
+public class AppointmentService implements IAppointmentController {
 
     private static final int SLOT_MINUTES = 30;
     private static final Duration CANCEL_DEADLINE = Duration.ofHours(12);
     private static final String CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int CODE_LENGTH = 10;
 
-    private final AppointmentRepository appointmentRepository;
-    private final ServiceRepository serviceRepository;
+    private final IAppointmentRepository appointmentRepository;
+    private final IServiceCatalogRepository serviceCatalogRepository;
     private final AvailabilityService availabilityService;
-    private final BlockedPhoneNumberRepository blockedPhoneNumberRepository;
-    private final NoShowRegistrationService noShowRegistrationService;
+    private final IBlockedPhoneNumberRepository blockedPhoneNumberRepository;
+    private final IClientPhoneProfileController clientPhoneProfileController;
     private final DomainEventPublisher domainEventPublisher;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
+    @Override
     @Transactional
     public AppointmentResponse create(CreateAppointmentRequest request) {
         blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue(request.phoneNumber())
@@ -49,7 +53,7 @@ public class AppointmentService {
                     throw new BusinessRuleException("Phone number is blocked.");
                 });
 
-        Service service = serviceRepository.findById(request.serviceId())
+        Service service = serviceCatalogRepository.findById(request.serviceId())
                 .orElseThrow(() -> new NotFoundException("Service not found."));
 
         BarberAssignment assignment = resolveAssignment(request, service);
@@ -80,6 +84,7 @@ public class AppointmentService {
         return toResponse(saved);
     }
 
+    @Override
     @Transactional
     public void cancelByBookingToken(String bookingToken) {
         Appointment appointment = appointmentRepository.findByBookingToken(bookingToken)
@@ -100,13 +105,14 @@ public class AppointmentService {
         publishCanceled(saved, CancellationSource.CLIENT_TOKEN);
     }
 
+    @Override
     @Transactional
     public StaffAppointmentResponse updateStatus(Long appointmentId, AppointmentStatus status) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new NotFoundException("Appointment not found."));
 
         if (status == AppointmentStatus.NO_SHOW && appointment.getStatus() != AppointmentStatus.NO_SHOW) {
-            noShowRegistrationService.registerNoShow(appointment);
+            clientPhoneProfileController.registerNoShow(appointment);
         }
 
         boolean wasCanceled = appointment.isCanceled();
@@ -121,12 +127,14 @@ public class AppointmentService {
         return toStaffResponse(saved);
     }
 
+    @Override
     public StaffAppointmentResponse getStaffDetails(Long appointmentId) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new NotFoundException("Appointment not found."));
         return toStaffResponse(appointment);
     }
 
+    @Override
     public List<StaffAppointmentResponse> getBarberCalendar(Long barberId, LocalDateTime from, LocalDateTime to) {
         return appointmentRepository.findAllByBarberIdAndStartTimeBetweenAndCanceledFalse(barberId, from, to).stream()
                 .map(this::toStaffResponse)

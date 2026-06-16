@@ -8,7 +8,7 @@ import com.barber_manager.appointment_service.events.CancellationSource;
 import com.barber_manager.appointment_service.events.ClientBlockedEvent;
 import com.barber_manager.appointment_service.events.DomainEventPublisher;
 import com.barber_manager.appointment_service.events.handlers.ClientBlockedPolicy;
-import com.barber_manager.appointment_service.repository.AppointmentRepository;
+import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.MethodOrderer;
@@ -47,7 +47,7 @@ class ClientBlockedPolicyTddTest {
     private ClientBlockedPolicy clientBlockedPolicy;
 
     @Mock
-    private AppointmentRepository appointmentRepository;
+    private IAppointmentRepository appointmentRepository;
 
     @Mock
     private DomainEventPublisher domainEventPublisher;
