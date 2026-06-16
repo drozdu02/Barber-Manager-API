@@ -96,6 +96,14 @@ public class UserService {
         return new UserCredentialDto(user.getId(), user.getEmail(), user.getPassword(), user.getRole());
     }
 
+    @Transactional
+    public void seedUserIfAbsent(RegisterRequestDto request) {
+        if (userRepository.existsByEmail(request.email())) {
+            return;
+        }
+        createUserFromAuth(request);
+    }
+
 
 
 }
