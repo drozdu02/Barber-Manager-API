@@ -2,7 +2,6 @@ package com.barber_manager.appointment_service.schedule.domain;
 
 import com.barber_manager.appointment_service.repository.AppointmentRepository;
 import com.barber_manager.appointment_service.repository.BarberBreakRepository;
-import com.barber_manager.appointment_service.repository.BarberServiceCompetencyRepository;
 import com.barber_manager.appointment_service.repository.BarberTimeOffRepository;
 import com.barber_manager.appointment_service.repository.BarberWorkScheduleRepository;
 import com.barber_manager.appointment_service.repository.ServiceRepository;
@@ -22,12 +21,10 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -41,7 +38,6 @@ public class AvailabilityService implements IAvailabilityController {
     private final BarberBreakRepository barberBreakRepository;
     private final BarberWorkScheduleRepository workScheduleRepository;
     private final BarberTimeOffRepository timeOffRepository;
-    private final BarberServiceCompetencyRepository competencyRepository;
 
     @Override
     public AvailabilityResponse getAvailability(
@@ -62,8 +58,7 @@ public class AvailabilityService implements IAvailabilityController {
                         "When anyAvailable=true you must provide anyAvailableBarberIds."
                 );
             }
-            List<Long> competentBarbers = filterCompetentBarbers(serviceId, anyAvailableBarberIds);
-            List<AvailabilitySlotResponse> slots = buildMergedSlots(competentBarbers, date, durationMinutes);
+            List<AvailabilitySlotResponse> slots = buildMergedSlots(anyAvailableBarberIds, date, durationMinutes);
             return new AvailabilityResponse(date, serviceId, null, true, slots);
         }
 
@@ -71,7 +66,6 @@ public class AvailabilityService implements IAvailabilityController {
             throw new BusinessRuleException("barberId is required when anyAvailable=false.");
         }
 
-        ensureBarberCompetent(serviceId, barberId);
         List<AvailabilitySlotResponse> slots = buildSlotsForBarber(barberId, date, durationMinutes);
         return new AvailabilityResponse(date, serviceId, barberId, false, slots);
     }
@@ -80,14 +74,7 @@ public class AvailabilityService implements IAvailabilityController {
         if (barberIds == null || barberIds.isEmpty()) {
             return List.of();
         }
-        if (!competencyRepository.existsByServiceId(serviceId)) {
-            return barberIds;
-        }
-
-        Set<Long> competent = new HashSet<>(competencyRepository.findBarberIdsByServiceId(serviceId));
-        return barberIds.stream()
-                .filter(competent::contains)
-                .toList();
+        return barberIds;
     }
 
     public Optional<Long> resolveBarberForSlot(
@@ -96,8 +83,7 @@ public class AvailabilityService implements IAvailabilityController {
             LocalDateTime start,
             LocalDateTime end
     ) {
-        List<Long> competentBarbers = filterCompetentBarbers(serviceId, barberIds);
-        for (Long candidate : competentBarbers) {
+        for (Long candidate : filterCompetentBarbers(serviceId, barberIds)) {
             if (isFree(candidate, start, end)) {
                 return Optional.of(candidate);
             }
@@ -113,8 +99,8 @@ public class AvailabilityService implements IAvailabilityController {
         Service service = serviceRepository.findById(serviceId)
                 .orElseThrow(() -> new NotFoundException("Service not found."));
 
-        List<Long> competentBarbers = filterCompetentBarbers(serviceId, barberIds);
-        if (competentBarbers.isEmpty()) {
+        List<Long> candidates = filterCompetentBarbers(serviceId, barberIds);
+        if (candidates.isEmpty()) {
             return Optional.empty();
         }
 
@@ -123,7 +109,7 @@ public class AvailabilityService implements IAvailabilityController {
 
         for (int dayOffset = 0; dayOffset < SEARCH_HORIZON_DAYS; dayOffset++) {
             LocalDate date = anchor.toLocalDate().plusDays(dayOffset);
-            for (AvailabilitySlotResponse slot : buildMergedSlots(competentBarbers, date, durationMinutes)) {
+            for (AvailabilitySlotResponse slot : buildMergedSlots(candidates, date, durationMinutes)) {
                 if (!slot.startTime().isBefore(anchor) && !slot.availableBarberIds().isEmpty()) {
                     Long assignedBarberId = slot.availableBarberIds().getFirst();
                     return Optional.of(new BarberAssignment(assignedBarberId, slot.startTime(), slot.endTime()));
@@ -131,15 +117,6 @@ public class AvailabilityService implements IAvailabilityController {
             }
         }
         return Optional.empty();
-    }
-
-    private void ensureBarberCompetent(Long serviceId, Long barberId) {
-        if (!competencyRepository.existsByServiceId(serviceId)) {
-            return;
-        }
-        if (!competencyRepository.existsByBarberIdAndServiceId(barberId, serviceId)) {
-            throw new BusinessRuleException("Barber cannot perform this service.");
-        }
     }
 
     private List<AvailabilitySlotResponse> buildMergedSlots(

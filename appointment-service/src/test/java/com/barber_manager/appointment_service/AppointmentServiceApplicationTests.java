@@ -2,10 +2,8 @@ package com.barber_manager.appointment_service;
 
 import com.barber_manager.appointment_service.repository.AppointmentRepository;
 import com.barber_manager.appointment_service.repository.BarberBreakRepository;
-import com.barber_manager.appointment_service.repository.BarberServiceCompetencyRepository;
 import com.barber_manager.appointment_service.repository.BarberTimeOffRepository;
 import com.barber_manager.appointment_service.repository.BarberWorkScheduleRepository;
-import com.barber_manager.appointment_service.repository.BlockedPhoneNumberRepository;
 import com.barber_manager.appointment_service.repository.ClientPhoneProfileRepository;
 import com.barber_manager.appointment_service.repository.NoShowIncidentRepository;
 import com.barber_manager.appointment_service.repository.ServiceRepository;
@@ -33,9 +31,6 @@ class AppointmentServiceApplicationTests {
     private ServiceRepository serviceRepository;
 
     @MockitoBean
-    private BlockedPhoneNumberRepository blockedPhoneNumberRepository;
-
-    @MockitoBean
     private BarberBreakRepository barberBreakRepository;
 
     @MockitoBean
@@ -43,9 +38,6 @@ class AppointmentServiceApplicationTests {
 
     @MockitoBean
     private BarberTimeOffRepository barberTimeOffRepository;
-
-    @MockitoBean
-    private BarberServiceCompetencyRepository barberServiceCompetencyRepository;
 
     @MockitoBean
     private NoShowIncidentRepository noShowIncidentRepository;

@@ -9,7 +9,6 @@ import com.barber_manager.appointment_service.exception.NotFoundException;
 import com.barber_manager.appointment_service.repository.AppointmentRepository;
 import com.barber_manager.appointment_service.repository.ServiceRepository;
 import com.barber_manager.appointment_service.repository.BarberBreakRepository;
-import com.barber_manager.appointment_service.repository.BarberServiceCompetencyRepository;
 import com.barber_manager.appointment_service.repository.BarberTimeOffRepository;
 import com.barber_manager.appointment_service.repository.BarberWorkScheduleRepository;
 import com.barber_manager.appointment_service.schedule.domain.AvailabilityService;
@@ -51,9 +50,6 @@ class AvailabilityServiceTest {
     @Mock
     private BarberTimeOffRepository timeOffRepository;
 
-    @Mock
-    private BarberServiceCompetencyRepository competencyRepository;
-
     @Test
     void shouldReturnAvailabilityForSpecificBarber() {
         LocalDate date = LocalDate.of(2026, 6, 10);
@@ -61,7 +57,6 @@ class AvailabilityServiceTest {
         BarberWorkSchedule schedule = new BarberWorkSchedule(null, 10L, date.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(12, 0));
 
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
-        when(competencyRepository.existsByServiceId(1L)).thenReturn(false);
         when(timeOffRepository.findActiveOnDate(10L, date)).thenReturn(List.of());
         when(workScheduleRepository.findByBarberIdAndDayOfWeek(10L, date.getDayOfWeek())).thenReturn(Optional.of(schedule));
         when(appointmentRepository.findOverlapping(eq(10L), any(), any())).thenReturn(List.of());
@@ -83,7 +78,6 @@ class AvailabilityServiceTest {
         BarberWorkSchedule schedule = new BarberWorkSchedule(null, 10L, date.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(10, 0));
 
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
-        when(competencyRepository.existsByServiceId(1L)).thenReturn(false);
         when(timeOffRepository.findActiveOnDate(any(), eq(date))).thenReturn(List.of());
         when(workScheduleRepository.findByBarberIdAndDayOfWeek(any(), eq(date.getDayOfWeek()))).thenReturn(Optional.of(schedule));
         when(appointmentRepository.findOverlapping(any(), any(), any())).thenReturn(List.of());
@@ -97,13 +91,10 @@ class AvailabilityServiceTest {
     }
 
     @Test
-    void shouldFilterBarbersByCompetency() {
-        when(competencyRepository.existsByServiceId(1L)).thenReturn(true);
-        when(competencyRepository.findBarberIdsByServiceId(1L)).thenReturn(List.of(10L));
+    void shouldReturnAllCandidateBarbersFromFilter() {
+        List<Long> candidates = availabilityService.filterCompetentBarbers(1L, List.of(10L, 11L));
 
-        List<Long> competent = availabilityService.filterCompetentBarbers(1L, List.of(10L, 11L));
-
-        assertEquals(List.of(10L), competent);
+        assertEquals(List.of(10L, 11L), candidates);
     }
 
     @Test
@@ -111,7 +102,6 @@ class AvailabilityServiceTest {
         LocalDateTime start = LocalDateTime.of(2026, 6, 10, 10, 0);
         LocalDateTime end = start.plusMinutes(30);
 
-        when(competencyRepository.existsByServiceId(1L)).thenReturn(false);
         when(appointmentRepository.findOverlapping(10L, start, end)).thenReturn(List.of());
         when(barberBreakRepository.findOverlapping(10L, start, end)).thenReturn(List.of());
 
@@ -128,7 +118,6 @@ class AvailabilityServiceTest {
         BarberWorkSchedule schedule = new BarberWorkSchedule(null, 10L, date.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(12, 0));
 
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
-        when(competencyRepository.existsByServiceId(1L)).thenReturn(false);
         when(timeOffRepository.findActiveOnDate(10L, date)).thenReturn(List.of());
         when(workScheduleRepository.findByBarberIdAndDayOfWeek(10L, date.getDayOfWeek())).thenReturn(Optional.of(schedule));
         when(appointmentRepository.findOverlapping(eq(10L), any(), any())).thenReturn(List.of());
@@ -168,19 +157,6 @@ class AvailabilityServiceTest {
         assertThrows(
                 BusinessRuleException.class,
                 () -> availabilityService.getAvailability(LocalDate.now(), 1L, null, true, List.of())
-        );
-    }
-
-    @Test
-    void shouldRejectIncompetentBarberForSpecificAvailability() {
-        LocalDate date = LocalDate.of(2026, 6, 10);
-        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service(1L, 1)));
-        when(competencyRepository.existsByServiceId(1L)).thenReturn(true);
-        when(competencyRepository.existsByBarberIdAndServiceId(11L, 1L)).thenReturn(false);
-
-        assertThrows(
-                BusinessRuleException.class,
-                () -> availabilityService.getAvailability(date, 1L, 11L, false, null)
         );
     }
 

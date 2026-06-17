@@ -11,8 +11,6 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "appointment.client-block")
 public class ClientBlockProperties {
 
-    /**
-     * Number of registered no-shows that triggers an automatic client block.
-     */
+
     private int noShowThreshold = 3;
 }

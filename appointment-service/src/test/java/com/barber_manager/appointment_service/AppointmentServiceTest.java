@@ -4,7 +4,7 @@ import com.barber_manager.appointment_service.dto.AppointmentResponse;
 import com.barber_manager.appointment_service.dto.BarberAssignment;
 import com.barber_manager.appointment_service.dto.CreateAppointmentRequest;
 import com.barber_manager.appointment_service.entity.Appointment;
-import com.barber_manager.appointment_service.entity.BlockedPhoneNumber;
+import com.barber_manager.appointment_service.entity.ClientPhoneProfile;
 import com.barber_manager.appointment_service.entity.Service;
 import com.barber_manager.appointment_service.enums.AppointmentStatus;
 import com.barber_manager.appointment_service.events.AppointmentBookedEvent;
@@ -15,7 +15,7 @@ import com.barber_manager.appointment_service.exception.BusinessRuleException;
 import com.barber_manager.appointment_service.exception.NotFoundException;
 import com.barber_manager.appointment_service.booking.port.in.IClientPhoneProfileController;
 import com.barber_manager.appointment_service.repository.AppointmentRepository;
-import com.barber_manager.appointment_service.repository.BlockedPhoneNumberRepository;
+import com.barber_manager.appointment_service.repository.ClientPhoneProfileRepository;
 import com.barber_manager.appointment_service.repository.ServiceRepository;
 import com.barber_manager.appointment_service.schedule.domain.AvailabilityService;
 import com.barber_manager.appointment_service.service.AppointmentService;
@@ -52,7 +52,7 @@ class AppointmentServiceTest {
     private AvailabilityService availabilityService;
 
     @Mock
-    private BlockedPhoneNumberRepository blockedPhoneNumberRepository;
+    private ClientPhoneProfileRepository clientPhoneProfileRepository;
 
     @Mock
     private IClientPhoneProfileController clientPhoneProfileController;
@@ -76,7 +76,7 @@ class AppointmentServiceTest {
                 null
         );
 
-        when(blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue("123456789")).thenReturn(Optional.empty());
+        when(clientPhoneProfileRepository.findByPhoneNumber("123456789")).thenReturn(Optional.empty());
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(availabilityService.filterCompetentBarbers(1L, List.of(10L))).thenReturn(List.of(10L));
         when(appointmentRepository.findOverlapping(10L, start, start.plusMinutes(60))).thenReturn(List.of());
@@ -117,7 +117,7 @@ class AppointmentServiceTest {
                 false
         );
 
-        when(blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue("123456789")).thenReturn(Optional.empty());
+        when(clientPhoneProfileRepository.findByPhoneNumber("123456789")).thenReturn(Optional.empty());
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(availabilityService.resolveBarberForSlot(1L, List.of(10L, 11L), start, start.plusMinutes(30)))
                 .thenReturn(Optional.of(11L));
@@ -152,7 +152,7 @@ class AppointmentServiceTest {
                 true
         );
 
-        when(blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue("123456789")).thenReturn(Optional.empty());
+        when(clientPhoneProfileRepository.findByPhoneNumber("123456789")).thenReturn(Optional.empty());
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(availabilityService.findEarliestAssignment(1L, List.of(10L), null))
                 .thenReturn(Optional.of(new BarberAssignment(10L, assignedStart, assignedStart.plusMinutes(60))));
@@ -174,10 +174,11 @@ class AppointmentServiceTest {
 
     @Test
     void shouldRejectBlockedPhoneOnCreate() {
-        BlockedPhoneNumber blocked = new BlockedPhoneNumber();
-        blocked.setPhoneNumber("123456789");
-        when(blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue("123456789"))
-                .thenReturn(Optional.of(blocked));
+        ClientPhoneProfile blockedProfile = new ClientPhoneProfile();
+        blockedProfile.setPhoneNumber("123456789");
+        blockedProfile.setBlocked(true);
+        when(clientPhoneProfileRepository.findByPhoneNumber("123456789"))
+                .thenReturn(Optional.of(blockedProfile));
 
         CreateAppointmentRequest request = new CreateAppointmentRequest(
                 "Jan",
@@ -196,7 +197,7 @@ class AppointmentServiceTest {
 
     @Test
     void shouldRejectCreateWhenServiceMissing() {
-        when(blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue(any())).thenReturn(Optional.empty());
+        when(clientPhoneProfileRepository.findByPhoneNumber(any())).thenReturn(Optional.empty());
         when(serviceRepository.findById(99L)).thenReturn(Optional.empty());
 
         CreateAppointmentRequest request = new CreateAppointmentRequest(
@@ -219,7 +220,7 @@ class AppointmentServiceTest {
         LocalDateTime start = LocalDateTime.of(2026, 6, 15, 10, 0);
         Service service = service(1L, 2);
 
-        when(blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue(any())).thenReturn(Optional.empty());
+        when(clientPhoneProfileRepository.findByPhoneNumber(any())).thenReturn(Optional.empty());
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(availabilityService.filterCompetentBarbers(1L, List.of(10L))).thenReturn(List.of(10L));
         when(appointmentRepository.findOverlapping(10L, start, start.plusMinutes(60)))

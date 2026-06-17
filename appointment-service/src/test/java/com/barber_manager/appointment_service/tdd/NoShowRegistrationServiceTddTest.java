@@ -1,14 +1,18 @@
 package com.barber_manager.appointment_service.tdd;
 
+import com.barber_manager.appointment_service.config.ClientBlockProperties;
 import com.barber_manager.appointment_service.entity.Appointment;
 import com.barber_manager.appointment_service.entity.ClientPhoneProfile;
 import com.barber_manager.appointment_service.entity.NoShowIncident;
 import com.barber_manager.appointment_service.entity.Service;
+import com.barber_manager.appointment_service.events.ClientBlockedEvent;
+import com.barber_manager.appointment_service.events.DomainEventPublisher;
 import com.barber_manager.appointment_service.exception.NotFoundException;
+import com.barber_manager.appointment_service.repository.AppointmentRepository;
 import com.barber_manager.appointment_service.repository.ClientPhoneProfileRepository;
 import com.barber_manager.appointment_service.repository.NoShowIncidentRepository;
-import com.barber_manager.appointment_service.service.ClientBlockService;
 import com.barber_manager.appointment_service.service.NoShowRegistrationService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -23,11 +27,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +46,8 @@ import static org.mockito.Mockito.when;
 class NoShowRegistrationServiceTddTest {
 
     private static final String PHONE = "987654321";
+    private static final UUID EVENT_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final LocalDateTime NOW = LocalDateTime.of(2026, 6, 10, 10, 0);
 
     @InjectMocks
     private NoShowRegistrationService noShowRegistrationService;
@@ -50,7 +59,22 @@ class NoShowRegistrationServiceTddTest {
     private NoShowIncidentRepository noShowIncidentRepository;
 
     @Mock
-    private ClientBlockService clientBlockService;
+    private AppointmentRepository appointmentRepository;
+
+    @Mock
+    private ClientBlockProperties clientBlockProperties;
+
+    @Mock
+    private DomainEventPublisher domainEventPublisher;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(clientBlockProperties.getNoShowThreshold()).thenReturn(3);
+        lenient().when(domainEventPublisher.newEventId()).thenReturn(EVENT_ID);
+        lenient().when(domainEventPublisher.now()).thenReturn(NOW);
+        lenient().when(appointmentRepository.findAllByPhoneNumberAndCanceledFalseAndStartTimeAfter(any(), any()))
+                .thenReturn(List.of());
+    }
 
     @Test
     @Order(1)
@@ -63,12 +87,12 @@ class NoShowRegistrationServiceTddTest {
         noShowRegistrationService.registerNoShow(appointment);
 
         ArgumentCaptor<ClientPhoneProfile> profileCaptor = ArgumentCaptor.forClass(ClientPhoneProfile.class);
-        verify(clientPhoneProfileRepository).save(profileCaptor.capture());
-        assertEquals(1, profileCaptor.getValue().getNoShowCount());
-        assertEquals(PHONE, profileCaptor.getValue().getPhoneNumber());
+        verify(clientPhoneProfileRepository, org.mockito.Mockito.atLeastOnce()).save(profileCaptor.capture());
+        assertEquals(1, profileCaptor.getAllValues().getFirst().getNoShowCount());
+        assertEquals(PHONE, profileCaptor.getAllValues().getFirst().getPhoneNumber());
 
         verify(noShowIncidentRepository).save(any(NoShowIncident.class));
-        verify(clientBlockService).applyBlockIfNoShowThresholdExceeded(PHONE, 1);
+        verify(domainEventPublisher, never()).publish(any(ClientBlockedEvent.class));
     }
 
     @Test
@@ -82,7 +106,7 @@ class NoShowRegistrationServiceTddTest {
 
         verify(clientPhoneProfileRepository, never()).save(any());
         verify(noShowIncidentRepository, never()).save(any());
-        verify(clientBlockService, never()).applyBlockIfNoShowThresholdExceeded(any(), eq(0));
+        verify(domainEventPublisher, never()).publish(any());
     }
 
     @Test
@@ -101,16 +125,36 @@ class NoShowRegistrationServiceTddTest {
         ClientPhoneProfile profile = new ClientPhoneProfile();
         profile.setPhoneNumber(PHONE);
         profile.setNoShowCount(2);
+        profile.setBlocked(false);
         when(clientPhoneProfileRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.of(profile));
         when(noShowIncidentRepository.findAllByPhoneNumberOrderByRegisteredAtDesc(PHONE)).thenReturn(List.of());
-        when(clientBlockService.getNoShowThreshold()).thenReturn(3);
-        when(clientBlockService.isBlocked(PHONE)).thenReturn(false);
 
         var response = noShowRegistrationService.getPhoneProfile(PHONE);
 
         assertEquals(2, response.noShowCount());
         assertEquals(3, response.noShowThreshold());
-        assertEquals(false, response.blocked());
+        assertFalse(response.blocked());
+    }
+
+    @Test
+    @Order(5)
+    @DisplayName("Krok 5 (Green): przekroczenie progu no-show publikuje ClientBlockedEvent z agregatu")
+    void step5_thresholdExceededShouldPublishClientBlockedEvent() {
+        Appointment appointment = sampleAppointment(9L);
+        ClientPhoneProfile profile = new ClientPhoneProfile();
+        profile.setId(5L);
+        profile.setPhoneNumber(PHONE);
+        profile.setNoShowCount(2);
+
+        when(noShowIncidentRepository.existsByAppointmentId(9L)).thenReturn(false);
+        when(clientPhoneProfileRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.of(profile));
+
+        noShowRegistrationService.registerNoShow(appointment);
+
+        ArgumentCaptor<ClientBlockedEvent> eventCaptor = ArgumentCaptor.forClass(ClientBlockedEvent.class);
+        verify(domainEventPublisher).publish(eventCaptor.capture());
+        assertEquals(PHONE, eventCaptor.getValue().phoneNumber());
+        assertTrue(eventCaptor.getValue().automatic());
     }
 
     private static Appointment sampleAppointment(long id) {

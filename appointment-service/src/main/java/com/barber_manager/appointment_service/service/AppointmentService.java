@@ -3,13 +3,14 @@ package com.barber_manager.appointment_service.service;
 import com.barber_manager.appointment_service.booking.port.in.IAppointmentController;
 import com.barber_manager.appointment_service.booking.port.in.IClientPhoneProfileController;
 import com.barber_manager.appointment_service.repository.AppointmentRepository;
-import com.barber_manager.appointment_service.repository.BlockedPhoneNumberRepository;
+import com.barber_manager.appointment_service.repository.ClientPhoneProfileRepository;
 import com.barber_manager.appointment_service.repository.ServiceRepository;
 import com.barber_manager.appointment_service.dto.AppointmentResponse;
 import com.barber_manager.appointment_service.dto.BarberAssignment;
 import com.barber_manager.appointment_service.dto.CreateAppointmentRequest;
 import com.barber_manager.appointment_service.dto.StaffAppointmentResponse;
 import com.barber_manager.appointment_service.entity.Appointment;
+import com.barber_manager.appointment_service.entity.ClientPhoneProfile;
 import com.barber_manager.appointment_service.entity.Service;
 import com.barber_manager.appointment_service.enums.AppointmentStatus;
 import com.barber_manager.appointment_service.events.AppointmentBookedEvent;
@@ -39,7 +40,7 @@ public class AppointmentService implements IAppointmentController {
     private final AppointmentRepository appointmentRepository;
     private final ServiceRepository serviceRepository;
     private final AvailabilityService availabilityService;
-    private final BlockedPhoneNumberRepository blockedPhoneNumberRepository;
+    private final ClientPhoneProfileRepository clientPhoneProfileRepository;
     private final IClientPhoneProfileController clientPhoneProfileController;
     private final DomainEventPublisher domainEventPublisher;
 
@@ -48,8 +49,9 @@ public class AppointmentService implements IAppointmentController {
     @Override
     @Transactional
     public AppointmentResponse create(CreateAppointmentRequest request) {
-        blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue(request.phoneNumber())
-                .ifPresent(b -> {
+        clientPhoneProfileRepository.findByPhoneNumber(request.phoneNumber())
+                .filter(ClientPhoneProfile::isBlocked)
+                .ifPresent(profile -> {
                     throw new BusinessRuleException("Phone number is blocked.");
                 });
 

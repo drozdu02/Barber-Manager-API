@@ -29,9 +29,6 @@ public class Appointment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * Optional: can be null if the client chose anyAvailable and assignment is done elsewhere.
-     */
     private Long barberId;
 
     @NotNull

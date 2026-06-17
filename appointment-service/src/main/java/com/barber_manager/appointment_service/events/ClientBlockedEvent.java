@@ -7,7 +7,7 @@ import java.util.UUID;
 public record ClientBlockedEvent(
         UUID eventId,
         LocalDateTime occurredAt,
-        Long blockId,
+        Long profileId,
         String phoneNumber,
         String reason,
         boolean automatic,
