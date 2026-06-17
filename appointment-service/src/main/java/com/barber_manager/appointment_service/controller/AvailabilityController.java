@@ -24,9 +24,11 @@ public class AvailabilityController {
             @RequestParam LocalDate date,
             @RequestParam Long serviceId,
             @RequestParam(required = false) Long barberId,
-            @RequestParam(defaultValue = "false") boolean any,
-            @RequestParam(required = false) List<Long> barberIds
+            @RequestParam(defaultValue = "false") boolean anyAvailable,
+            @RequestParam(required = false) List<Long> anyAvailableBarberIds
     ) {
-        return ResponseEntity.ok(availabilityController.getAvailability(date, serviceId, barberId, any, barberIds));
+        return ResponseEntity.ok(
+                availabilityController.getAvailability(date, serviceId, barberId, anyAvailable, anyAvailableBarberIds)
+        );
     }
 }

@@ -48,25 +48,27 @@ public class AvailabilityService implements IAvailabilityController {
             LocalDate date,
             Long serviceId,
             Long barberId,
-            boolean any,
-            List<Long> barberIds
+            boolean anyAvailable,
+            List<Long> anyAvailableBarberIds
     ) {
         Service service = serviceRepository.findById(serviceId)
                 .orElseThrow(() -> new NotFoundException("Service not found."));
 
         int durationMinutes = service.getSlotCount() * SLOT_MINUTES;
 
-        if (any) {
-            if (barberIds == null || barberIds.isEmpty()) {
-                throw new BusinessRuleException("When any=true you must provide barberIds.");
+        if (anyAvailable) {
+            if (anyAvailableBarberIds == null || anyAvailableBarberIds.isEmpty()) {
+                throw new BusinessRuleException(
+                        "When anyAvailable=true you must provide anyAvailableBarberIds."
+                );
             }
-            List<Long> competentBarbers = filterCompetentBarbers(serviceId, barberIds);
+            List<Long> competentBarbers = filterCompetentBarbers(serviceId, anyAvailableBarberIds);
             List<AvailabilitySlotResponse> slots = buildMergedSlots(competentBarbers, date, durationMinutes);
             return new AvailabilityResponse(date, serviceId, null, true, slots);
         }
 
         if (barberId == null) {
-            throw new BusinessRuleException("barberId is required when any=false.");
+            throw new BusinessRuleException("barberId is required when anyAvailable=false.");
         }
 
         ensureBarberCompetent(serviceId, barberId);

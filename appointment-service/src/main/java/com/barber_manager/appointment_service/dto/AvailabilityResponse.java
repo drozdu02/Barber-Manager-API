@@ -7,7 +7,7 @@ public record AvailabilityResponse(
         LocalDate date,
         Long serviceId,
         Long barberId,
-        boolean any,
+        boolean anyAvailable,
         List<AvailabilitySlotResponse> slots
 ) {
 }

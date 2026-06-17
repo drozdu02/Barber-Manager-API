@@ -24,13 +24,13 @@ public record CreateAppointmentRequest(
 
         Long barberId,
 
-        List<Long> anyBarberIds,
+        List<Long> anyAvailableBarberIds,
 
         /**
-         * When true with anyBarberIds, the system picks the earliest available slot
+         * When true with anyAvailableBarberIds, the system picks the earliest available slot
          * among competent barbers. startTime is optional and acts as the search anchor.
          */
-        Boolean assignEarliestSlot
+        Boolean anyAvailableEarliestSlot
 ) {
 }
 

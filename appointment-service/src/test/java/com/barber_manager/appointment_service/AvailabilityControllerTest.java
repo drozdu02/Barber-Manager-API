@@ -71,23 +71,27 @@ class AvailabilityControllerTest {
         mockMvc.perform(get("/availability")
                         .param("date", "2026-06-10")
                         .param("serviceId", "1")
-                        .param("any", "true")
-                        .param("barberIds", "10", "11"))
+                        .param("anyAvailable", "true")
+                        .param("anyAvailableBarberIds", "10", "11"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.any").value(true));
+                .andExpect(jsonPath("$.anyAvailable").value(true));
     }
 
     @Test
     void shouldReturn400WhenAvailabilityBusinessRuleFails() throws Exception {
         when(availabilityController.getAvailability(
                 eq(LocalDate.of(2026, 6, 10)), eq(1L), isNull(), eq(true), isNull()))
-                .thenThrow(new BusinessRuleException("When any=true you must provide barberIds."));
+                .thenThrow(new BusinessRuleException(
+                        "When anyAvailable=true you must provide anyAvailableBarberIds."
+                ));
 
         mockMvc.perform(get("/availability")
                         .param("date", "2026-06-10")
                         .param("serviceId", "1")
-                        .param("any", "true"))
+                        .param("anyAvailable", "true"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("When any=true you must provide barberIds."));
+                .andExpect(jsonPath("$.message").value(
+                        "When anyAvailable=true you must provide anyAvailableBarberIds."
+                ));
     }
 }

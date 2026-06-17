@@ -11,7 +11,7 @@ public interface IAvailabilityController {
             LocalDate date,
             Long serviceId,
             Long barberId,
-            boolean any,
-            List<Long> barberIds
+            boolean anyAvailable,
+            List<Long> anyAvailableBarberIds
     );
 }

@@ -189,12 +189,12 @@ public class AppointmentService implements IAppointmentController {
             );
         }
 
-        List<Long> candidates = request.anyBarberIds();
+        List<Long> candidates = request.anyAvailableBarberIds();
         if (candidates == null || candidates.isEmpty()) {
-            throw new BusinessRuleException("barberId or anyBarberIds is required.");
+            throw new BusinessRuleException("barberId or anyAvailableBarberIds is required.");
         }
 
-        if (Boolean.TRUE.equals(request.assignEarliestSlot())) {
+        if (Boolean.TRUE.equals(request.anyAvailableEarliestSlot())) {
             return availabilityService.findEarliestAssignment(
                             request.serviceId(),
                             candidates,

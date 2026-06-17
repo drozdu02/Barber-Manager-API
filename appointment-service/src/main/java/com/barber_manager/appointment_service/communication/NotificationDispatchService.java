@@ -5,10 +5,7 @@ import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-/**
- * Communication context entry point. Booking publishes {@link AppointmentBookedEvent};
- * this service dispatches notifications without Booking calling mail infrastructure directly.
- */
+
 @Service
 @RequiredArgsConstructor
 public class NotificationDispatchService {

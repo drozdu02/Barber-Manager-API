@@ -30,7 +30,7 @@ public class Appointment {
     private Long id;
 
     /**
-     * Optional: can be null if the client chose "any worker" and assignment is done elsewhere.
+     * Optional: can be null if the client chose anyAvailable and assignment is done elsewhere.
      */
     private Long barberId;
 

@@ -71,7 +71,7 @@ class AvailabilityServiceTest {
 
         assertEquals(date, response.date());
         assertEquals(10L, response.barberId());
-        assertFalse(response.any());
+        assertFalse(response.anyAvailable());
         assertFalse(response.slots().isEmpty());
         assertEquals(LocalDateTime.of(2026, 6, 10, 9, 0), response.slots().getFirst().startTime());
     }
@@ -91,7 +91,7 @@ class AvailabilityServiceTest {
 
         AvailabilityResponse response = availabilityService.getAvailability(date, 1L, null, true, List.of(10L, 11L));
 
-        assertTrue(response.any());
+        assertTrue(response.anyAvailable());
         assertNull(response.barberId());
         assertFalse(response.slots().isEmpty());
     }
