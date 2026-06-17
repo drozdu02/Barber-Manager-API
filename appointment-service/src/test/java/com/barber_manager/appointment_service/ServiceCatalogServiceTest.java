@@ -1,6 +1,6 @@
 package com.barber_manager.appointment_service;
 
-import com.barber_manager.appointment_service.catalog.port.out.IServiceCatalogRepository;
+import com.barber_manager.appointment_service.repository.ServiceRepository;
 import com.barber_manager.appointment_service.dto.ServiceResponse;
 import com.barber_manager.appointment_service.entity.Service;
 import com.barber_manager.appointment_service.service.ServiceCatalogService;
@@ -23,12 +23,12 @@ class ServiceCatalogServiceTest {
     private ServiceCatalogService serviceCatalogService;
 
     @Mock
-    private IServiceCatalogRepository serviceCatalogRepository;
+    private ServiceRepository serviceRepository;
 
     @Test
     void shouldListServices() {
         Service haircut = new Service(1L, "Haircut", new BigDecimal("60.00"), 2);
-        when(serviceCatalogRepository.findAll()).thenReturn(List.of(haircut));
+        when(serviceRepository.findAll()).thenReturn(List.of(haircut));
 
         List<ServiceResponse> services = serviceCatalogService.list();
 

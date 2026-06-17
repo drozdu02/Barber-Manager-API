@@ -7,8 +7,8 @@ import com.barber_manager.appointment_service.entity.Appointment;
 import com.barber_manager.appointment_service.entity.BlockedPhoneNumber;
 import com.barber_manager.appointment_service.events.ClientBlockedEvent;
 import com.barber_manager.appointment_service.events.DomainEventPublisher;
-import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
-import com.barber_manager.appointment_service.booking.port.out.IBlockedPhoneNumberRepository;
+import com.barber_manager.appointment_service.repository.AppointmentRepository;
+import com.barber_manager.appointment_service.repository.BlockedPhoneNumberRepository;
 import com.barber_manager.appointment_service.service.ClientBlockService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,10 +50,10 @@ class ClientBlockServiceTddTest {
     private ClientBlockService clientBlockService;
 
     @Mock
-    private IBlockedPhoneNumberRepository blockedPhoneNumberRepository;
+    private BlockedPhoneNumberRepository blockedPhoneNumberRepository;
 
     @Mock
-    private IAppointmentRepository appointmentRepository;
+    private AppointmentRepository appointmentRepository;
 
     @Mock
     private ClientBlockProperties clientBlockProperties;

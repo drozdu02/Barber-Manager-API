@@ -1,10 +1,10 @@
 package com.barber_manager.appointment_service.controller.admin;
 
-import com.barber_manager.appointment_service.catalog.port.out.IServiceCatalogRepository;
 import com.barber_manager.appointment_service.dto.admin.AssignBarberCompetencyRequest;
 import com.barber_manager.appointment_service.entity.BarberServiceCompetency;
 import com.barber_manager.appointment_service.exception.BusinessRuleException;
-import com.barber_manager.appointment_service.schedule.port.out.IBarberServiceCompetencyRepository;
+import com.barber_manager.appointment_service.repository.BarberServiceCompetencyRepository;
+import com.barber_manager.appointment_service.repository.ServiceRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,14 +21,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AdminBarberCompetencyController {
 
-    private final IBarberServiceCompetencyRepository competencyRepository;
-    private final IServiceCatalogRepository serviceCatalogRepository;
+    private final BarberServiceCompetencyRepository competencyRepository;
+    private final ServiceRepository serviceRepository;
 
     @PostMapping
     public ResponseEntity<BarberServiceCompetency> assign(
             @Valid @RequestBody AssignBarberCompetencyRequest request
     ) {
-        serviceCatalogRepository.findById(request.serviceId())
+        serviceRepository.findById(request.serviceId())
                 .orElseThrow(() -> new BusinessRuleException("Service not found."));
 
         if (competencyRepository.existsByBarberIdAndServiceId(request.barberId(), request.serviceId())) {

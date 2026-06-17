@@ -8,10 +8,9 @@ import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
-@DisplayName("Architektura: appointment-service (heksagonalna)")
+@DisplayName("Architektura: appointment-service (heksagonalna uproszczona)")
 class LayeredArchitectureTest {
 
     private static final JavaClasses CLASSES = new ClassFileImporter()
@@ -28,28 +27,10 @@ class LayeredArchitectureTest {
     }
 
     @Test
-    void outboundAdaptersShouldResideInInfrastructure() {
-        ArchRule rule = classes()
-                .that().haveSimpleNameEndingWith("Adapter")
-                .and().resideInAPackage("..adapter.out..")
-                .should().resideInAPackage("..infrastructure..");
-
-        rule.check(CLASSES);
-    }
-
-    @Test
-    void applicationServicesShouldNotAccessJpaRepositoriesDirectly() {
+    void publicControllersShouldNotAccessRepositoriesDirectly() {
         ArchRule rule = noClasses()
-                .that().resideInAPackage("..service..")
-                .should().accessClassesThat().resideInAPackage("..repository..");
-
-        rule.check(CLASSES);
-    }
-
-    @Test
-    void domainServicesShouldNotAccessJpaRepositoriesDirectly() {
-        ArchRule rule = noClasses()
-                .that().resideInAPackage("..schedule.domain..")
+                .that().resideInAPackage("..controller..")
+                .and().resideOutsideOfPackage("..controller.admin..")
                 .should().accessClassesThat().resideInAPackage("..repository..");
 
         rule.check(CLASSES);

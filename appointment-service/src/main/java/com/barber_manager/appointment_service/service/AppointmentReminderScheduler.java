@@ -1,9 +1,9 @@
 package com.barber_manager.appointment_service.service;
 
-import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
 import com.barber_manager.appointment_service.communication.NotificationDispatchService;
 import com.barber_manager.appointment_service.config.ReminderProperties;
 import com.barber_manager.appointment_service.entity.Appointment;
+import com.barber_manager.appointment_service.repository.AppointmentRepository;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ import java.util.List;
 @ConditionalOnProperty(name = "appointment.reminder.enabled", havingValue = "true", matchIfMissing = true)
 public class AppointmentReminderScheduler {
 
-    private final IAppointmentRepository appointmentRepository;
+    private final AppointmentRepository appointmentRepository;
     private final NotificationDispatchService notificationDispatchService;
     private final ReminderProperties reminderProperties;
 

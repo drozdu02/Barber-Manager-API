@@ -1,8 +1,8 @@
 package com.barber_manager.appointment_service.service;
 
 import com.barber_manager.appointment_service.booking.port.in.IClientBlockController;
-import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
-import com.barber_manager.appointment_service.booking.port.out.IBlockedPhoneNumberRepository;
+import com.barber_manager.appointment_service.repository.AppointmentRepository;
+import com.barber_manager.appointment_service.repository.BlockedPhoneNumberRepository;
 import com.barber_manager.appointment_service.config.ClientBlockProperties;
 import com.barber_manager.appointment_service.dto.admin.BlockPhoneRequest;
 import com.barber_manager.appointment_service.dto.admin.BlockPhoneResponse;
@@ -22,8 +22,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ClientBlockService implements IClientBlockController {
 
-    private final IBlockedPhoneNumberRepository blockedPhoneNumberRepository;
-    private final IAppointmentRepository appointmentRepository;
+    private final BlockedPhoneNumberRepository blockedPhoneNumberRepository;
+    private final AppointmentRepository appointmentRepository;
     private final ClientBlockProperties clientBlockProperties;
     private final DomainEventPublisher domainEventPublisher;
 

@@ -5,8 +5,8 @@ import com.barber_manager.appointment_service.entity.ClientPhoneProfile;
 import com.barber_manager.appointment_service.entity.NoShowIncident;
 import com.barber_manager.appointment_service.entity.Service;
 import com.barber_manager.appointment_service.exception.NotFoundException;
-import com.barber_manager.appointment_service.booking.port.out.IClientPhoneProfileRepository;
-import com.barber_manager.appointment_service.booking.port.out.INoShowIncidentRepository;
+import com.barber_manager.appointment_service.repository.ClientPhoneProfileRepository;
+import com.barber_manager.appointment_service.repository.NoShowIncidentRepository;
 import com.barber_manager.appointment_service.service.ClientBlockService;
 import com.barber_manager.appointment_service.service.NoShowRegistrationService;
 import org.junit.jupiter.api.DisplayName;
@@ -44,10 +44,10 @@ class NoShowRegistrationServiceTddTest {
     private NoShowRegistrationService noShowRegistrationService;
 
     @Mock
-    private IClientPhoneProfileRepository clientPhoneProfileRepository;
+    private ClientPhoneProfileRepository clientPhoneProfileRepository;
 
     @Mock
-    private INoShowIncidentRepository noShowIncidentRepository;
+    private NoShowIncidentRepository noShowIncidentRepository;
 
     @Mock
     private ClientBlockService clientBlockService;

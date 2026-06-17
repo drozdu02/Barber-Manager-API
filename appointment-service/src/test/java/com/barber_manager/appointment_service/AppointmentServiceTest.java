@@ -14,9 +14,9 @@ import com.barber_manager.appointment_service.events.DomainEventPublisher;
 import com.barber_manager.appointment_service.exception.BusinessRuleException;
 import com.barber_manager.appointment_service.exception.NotFoundException;
 import com.barber_manager.appointment_service.booking.port.in.IClientPhoneProfileController;
-import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
-import com.barber_manager.appointment_service.booking.port.out.IBlockedPhoneNumberRepository;
-import com.barber_manager.appointment_service.catalog.port.out.IServiceCatalogRepository;
+import com.barber_manager.appointment_service.repository.AppointmentRepository;
+import com.barber_manager.appointment_service.repository.BlockedPhoneNumberRepository;
+import com.barber_manager.appointment_service.repository.ServiceRepository;
 import com.barber_manager.appointment_service.schedule.domain.AvailabilityService;
 import com.barber_manager.appointment_service.service.AppointmentService;
 import org.junit.jupiter.api.Test;
@@ -43,16 +43,16 @@ class AppointmentServiceTest {
     private AppointmentService appointmentService;
 
     @Mock
-    private IAppointmentRepository appointmentRepository;
+    private AppointmentRepository appointmentRepository;
 
     @Mock
-    private IServiceCatalogRepository serviceCatalogRepository;
+    private ServiceRepository serviceRepository;
 
     @Mock
     private AvailabilityService availabilityService;
 
     @Mock
-    private IBlockedPhoneNumberRepository blockedPhoneNumberRepository;
+    private BlockedPhoneNumberRepository blockedPhoneNumberRepository;
 
     @Mock
     private IClientPhoneProfileController clientPhoneProfileController;
@@ -77,7 +77,7 @@ class AppointmentServiceTest {
         );
 
         when(blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue("123456789")).thenReturn(Optional.empty());
-        when(serviceCatalogRepository.findById(1L)).thenReturn(Optional.of(service));
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(availabilityService.filterCompetentBarbers(1L, List.of(10L))).thenReturn(List.of(10L));
         when(appointmentRepository.findOverlapping(10L, start, start.plusMinutes(60))).thenReturn(List.of());
         when(appointmentRepository.findByBookingToken(any())).thenReturn(Optional.empty());
@@ -118,7 +118,7 @@ class AppointmentServiceTest {
         );
 
         when(blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue("123456789")).thenReturn(Optional.empty());
-        when(serviceCatalogRepository.findById(1L)).thenReturn(Optional.of(service));
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(availabilityService.resolveBarberForSlot(1L, List.of(10L, 11L), start, start.plusMinutes(30)))
                 .thenReturn(Optional.of(11L));
         when(appointmentRepository.findOverlapping(11L, start, start.plusMinutes(30))).thenReturn(List.of());
@@ -153,7 +153,7 @@ class AppointmentServiceTest {
         );
 
         when(blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue("123456789")).thenReturn(Optional.empty());
-        when(serviceCatalogRepository.findById(1L)).thenReturn(Optional.of(service));
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(availabilityService.findEarliestAssignment(1L, List.of(10L), null))
                 .thenReturn(Optional.of(new BarberAssignment(10L, assignedStart, assignedStart.plusMinutes(60))));
         when(appointmentRepository.findOverlapping(10L, assignedStart, assignedStart.plusMinutes(60))).thenReturn(List.of());
@@ -197,7 +197,7 @@ class AppointmentServiceTest {
     @Test
     void shouldRejectCreateWhenServiceMissing() {
         when(blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue(any())).thenReturn(Optional.empty());
-        when(serviceCatalogRepository.findById(99L)).thenReturn(Optional.empty());
+        when(serviceRepository.findById(99L)).thenReturn(Optional.empty());
 
         CreateAppointmentRequest request = new CreateAppointmentRequest(
                 "Jan",
@@ -220,7 +220,7 @@ class AppointmentServiceTest {
         Service service = service(1L, 2);
 
         when(blockedPhoneNumberRepository.findByPhoneNumberAndActiveTrue(any())).thenReturn(Optional.empty());
-        when(serviceCatalogRepository.findById(1L)).thenReturn(Optional.of(service));
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(availabilityService.filterCompetentBarbers(1L, List.of(10L))).thenReturn(List.of(10L));
         when(appointmentRepository.findOverlapping(10L, start, start.plusMinutes(60)))
                 .thenReturn(List.of(new Appointment()));

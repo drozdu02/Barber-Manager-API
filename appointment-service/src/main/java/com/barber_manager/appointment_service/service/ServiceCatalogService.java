@@ -1,7 +1,7 @@
 package com.barber_manager.appointment_service.service;
 
 import com.barber_manager.appointment_service.catalog.port.in.IServiceCatalogController;
-import com.barber_manager.appointment_service.catalog.port.out.IServiceCatalogRepository;
+import com.barber_manager.appointment_service.repository.ServiceRepository;
 import com.barber_manager.appointment_service.dto.ServiceResponse;
 import com.barber_manager.appointment_service.entity.Service;
 import com.barber_manager.appointment_service.exception.NotFoundException;
@@ -13,11 +13,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ServiceCatalogService implements IServiceCatalogController {
 
-    private final IServiceCatalogRepository serviceCatalogRepository;
+    private final ServiceRepository serviceRepository;
 
     @Override
     public List<ServiceResponse> list() {
-        return serviceCatalogRepository.findAll().stream()
+        return serviceRepository.findAll().stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -25,12 +25,12 @@ public class ServiceCatalogService implements IServiceCatalogController {
     @Override
     public Service create(Service request) {
         request.setId(null);
-        return serviceCatalogRepository.save(request);
+        return serviceRepository.save(request);
     }
 
     @Override
     public Service update(Long id, Service request) {
-        Service existing = serviceCatalogRepository.findById(id)
+        Service existing = serviceRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Service not found."));
 
         if (request.getName() != null) {
@@ -43,12 +43,12 @@ public class ServiceCatalogService implements IServiceCatalogController {
             existing.setSlotCount(request.getSlotCount());
         }
 
-        return serviceCatalogRepository.save(existing);
+        return serviceRepository.save(existing);
     }
 
     @Override
     public void delete(Long id) {
-        serviceCatalogRepository.deleteById(id);
+        serviceRepository.deleteById(id);
     }
 
     private ServiceResponse toResponse(Service service) {

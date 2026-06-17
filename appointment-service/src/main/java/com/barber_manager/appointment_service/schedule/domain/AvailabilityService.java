@@ -1,7 +1,11 @@
 package com.barber_manager.appointment_service.schedule.domain;
 
-import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
-import com.barber_manager.appointment_service.catalog.port.out.IServiceCatalogRepository;
+import com.barber_manager.appointment_service.repository.AppointmentRepository;
+import com.barber_manager.appointment_service.repository.BarberBreakRepository;
+import com.barber_manager.appointment_service.repository.BarberServiceCompetencyRepository;
+import com.barber_manager.appointment_service.repository.BarberTimeOffRepository;
+import com.barber_manager.appointment_service.repository.BarberWorkScheduleRepository;
+import com.barber_manager.appointment_service.repository.ServiceRepository;
 import com.barber_manager.appointment_service.dto.AvailabilityResponse;
 import com.barber_manager.appointment_service.dto.AvailabilitySlotResponse;
 import com.barber_manager.appointment_service.dto.BarberAssignment;
@@ -10,10 +14,6 @@ import com.barber_manager.appointment_service.entity.Service;
 import com.barber_manager.appointment_service.exception.BusinessRuleException;
 import com.barber_manager.appointment_service.exception.NotFoundException;
 import com.barber_manager.appointment_service.schedule.port.in.IAvailabilityController;
-import com.barber_manager.appointment_service.schedule.port.out.IBarberBreakRepository;
-import com.barber_manager.appointment_service.schedule.port.out.IBarberServiceCompetencyRepository;
-import com.barber_manager.appointment_service.schedule.port.out.IBarberTimeOffRepository;
-import com.barber_manager.appointment_service.schedule.port.out.IWorkScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -36,12 +36,12 @@ public class AvailabilityService implements IAvailabilityController {
     private static final int SLOT_MINUTES = 30;
     private static final int SEARCH_HORIZON_DAYS = 60;
 
-    private final IAppointmentRepository appointmentRepository;
-    private final IServiceCatalogRepository serviceCatalogRepository;
-    private final IBarberBreakRepository barberBreakRepository;
-    private final IWorkScheduleRepository workScheduleRepository;
-    private final IBarberTimeOffRepository timeOffRepository;
-    private final IBarberServiceCompetencyRepository competencyRepository;
+    private final AppointmentRepository appointmentRepository;
+    private final ServiceRepository serviceRepository;
+    private final BarberBreakRepository barberBreakRepository;
+    private final BarberWorkScheduleRepository workScheduleRepository;
+    private final BarberTimeOffRepository timeOffRepository;
+    private final BarberServiceCompetencyRepository competencyRepository;
 
     @Override
     public AvailabilityResponse getAvailability(
@@ -51,7 +51,7 @@ public class AvailabilityService implements IAvailabilityController {
             boolean any,
             List<Long> barberIds
     ) {
-        Service service = serviceCatalogRepository.findById(serviceId)
+        Service service = serviceRepository.findById(serviceId)
                 .orElseThrow(() -> new NotFoundException("Service not found."));
 
         int durationMinutes = service.getSlotCount() * SLOT_MINUTES;
@@ -108,7 +108,7 @@ public class AvailabilityService implements IAvailabilityController {
             List<Long> barberIds,
             LocalDateTime searchFrom
     ) {
-        Service service = serviceCatalogRepository.findById(serviceId)
+        Service service = serviceRepository.findById(serviceId)
                 .orElseThrow(() -> new NotFoundException("Service not found."));
 
         List<Long> competentBarbers = filterCompetentBarbers(serviceId, barberIds);

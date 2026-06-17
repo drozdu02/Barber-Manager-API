@@ -2,9 +2,9 @@ package com.barber_manager.appointment_service.service;
 
 import com.barber_manager.appointment_service.booking.port.in.IAppointmentController;
 import com.barber_manager.appointment_service.booking.port.in.IClientPhoneProfileController;
-import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
-import com.barber_manager.appointment_service.booking.port.out.IBlockedPhoneNumberRepository;
-import com.barber_manager.appointment_service.catalog.port.out.IServiceCatalogRepository;
+import com.barber_manager.appointment_service.repository.AppointmentRepository;
+import com.barber_manager.appointment_service.repository.BlockedPhoneNumberRepository;
+import com.barber_manager.appointment_service.repository.ServiceRepository;
 import com.barber_manager.appointment_service.dto.AppointmentResponse;
 import com.barber_manager.appointment_service.dto.BarberAssignment;
 import com.barber_manager.appointment_service.dto.CreateAppointmentRequest;
@@ -36,10 +36,10 @@ public class AppointmentService implements IAppointmentController {
     private static final String CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int CODE_LENGTH = 10;
 
-    private final IAppointmentRepository appointmentRepository;
-    private final IServiceCatalogRepository serviceCatalogRepository;
+    private final AppointmentRepository appointmentRepository;
+    private final ServiceRepository serviceRepository;
     private final AvailabilityService availabilityService;
-    private final IBlockedPhoneNumberRepository blockedPhoneNumberRepository;
+    private final BlockedPhoneNumberRepository blockedPhoneNumberRepository;
     private final IClientPhoneProfileController clientPhoneProfileController;
     private final DomainEventPublisher domainEventPublisher;
 
@@ -53,7 +53,7 @@ public class AppointmentService implements IAppointmentController {
                     throw new BusinessRuleException("Phone number is blocked.");
                 });
 
-        Service service = serviceCatalogRepository.findById(request.serviceId())
+        Service service = serviceRepository.findById(request.serviceId())
                 .orElseThrow(() -> new NotFoundException("Service not found."));
 
         BarberAssignment assignment = resolveAssignment(request, service);

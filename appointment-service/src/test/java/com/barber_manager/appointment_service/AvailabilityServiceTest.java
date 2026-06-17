@@ -6,13 +6,13 @@ import com.barber_manager.appointment_service.entity.BarberWorkSchedule;
 import com.barber_manager.appointment_service.entity.Service;
 import com.barber_manager.appointment_service.exception.BusinessRuleException;
 import com.barber_manager.appointment_service.exception.NotFoundException;
-import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
-import com.barber_manager.appointment_service.catalog.port.out.IServiceCatalogRepository;
+import com.barber_manager.appointment_service.repository.AppointmentRepository;
+import com.barber_manager.appointment_service.repository.ServiceRepository;
+import com.barber_manager.appointment_service.repository.BarberBreakRepository;
+import com.barber_manager.appointment_service.repository.BarberServiceCompetencyRepository;
+import com.barber_manager.appointment_service.repository.BarberTimeOffRepository;
+import com.barber_manager.appointment_service.repository.BarberWorkScheduleRepository;
 import com.barber_manager.appointment_service.schedule.domain.AvailabilityService;
-import com.barber_manager.appointment_service.schedule.port.out.IBarberBreakRepository;
-import com.barber_manager.appointment_service.schedule.port.out.IBarberServiceCompetencyRepository;
-import com.barber_manager.appointment_service.schedule.port.out.IBarberTimeOffRepository;
-import com.barber_manager.appointment_service.schedule.port.out.IWorkScheduleRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -37,22 +37,22 @@ class AvailabilityServiceTest {
     private AvailabilityService availabilityService;
 
     @Mock
-    private IAppointmentRepository appointmentRepository;
+    private AppointmentRepository appointmentRepository;
 
     @Mock
-    private IServiceCatalogRepository serviceCatalogRepository;
+    private ServiceRepository serviceRepository;
 
     @Mock
-    private IBarberBreakRepository barberBreakRepository;
+    private BarberBreakRepository barberBreakRepository;
 
     @Mock
-    private IWorkScheduleRepository workScheduleRepository;
+    private BarberWorkScheduleRepository workScheduleRepository;
 
     @Mock
-    private IBarberTimeOffRepository timeOffRepository;
+    private BarberTimeOffRepository timeOffRepository;
 
     @Mock
-    private IBarberServiceCompetencyRepository competencyRepository;
+    private BarberServiceCompetencyRepository competencyRepository;
 
     @Test
     void shouldReturnAvailabilityForSpecificBarber() {
@@ -60,7 +60,7 @@ class AvailabilityServiceTest {
         Service service = service(1L, 1);
         BarberWorkSchedule schedule = new BarberWorkSchedule(null, 10L, date.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(12, 0));
 
-        when(serviceCatalogRepository.findById(1L)).thenReturn(Optional.of(service));
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(competencyRepository.existsByServiceId(1L)).thenReturn(false);
         when(timeOffRepository.findActiveOnDate(10L, date)).thenReturn(List.of());
         when(workScheduleRepository.findByBarberIdAndDayOfWeek(10L, date.getDayOfWeek())).thenReturn(Optional.of(schedule));
@@ -82,7 +82,7 @@ class AvailabilityServiceTest {
         Service service = service(1L, 1);
         BarberWorkSchedule schedule = new BarberWorkSchedule(null, 10L, date.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(10, 0));
 
-        when(serviceCatalogRepository.findById(1L)).thenReturn(Optional.of(service));
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(competencyRepository.existsByServiceId(1L)).thenReturn(false);
         when(timeOffRepository.findActiveOnDate(any(), eq(date))).thenReturn(List.of());
         when(workScheduleRepository.findByBarberIdAndDayOfWeek(any(), eq(date.getDayOfWeek()))).thenReturn(Optional.of(schedule));
@@ -127,7 +127,7 @@ class AvailabilityServiceTest {
         Service service = service(1L, 1);
         BarberWorkSchedule schedule = new BarberWorkSchedule(null, 10L, date.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(12, 0));
 
-        when(serviceCatalogRepository.findById(1L)).thenReturn(Optional.of(service));
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(competencyRepository.existsByServiceId(1L)).thenReturn(false);
         when(timeOffRepository.findActiveOnDate(10L, date)).thenReturn(List.of());
         when(workScheduleRepository.findByBarberIdAndDayOfWeek(10L, date.getDayOfWeek())).thenReturn(Optional.of(schedule));
@@ -143,7 +143,7 @@ class AvailabilityServiceTest {
 
     @Test
     void shouldRejectAvailabilityWhenServiceMissing() {
-        when(serviceCatalogRepository.findById(99L)).thenReturn(Optional.empty());
+        when(serviceRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(
                 NotFoundException.class,
@@ -153,7 +153,7 @@ class AvailabilityServiceTest {
 
     @Test
     void shouldRejectAvailabilityWhenBarberMissingForSpecificMode() {
-        when(serviceCatalogRepository.findById(1L)).thenReturn(Optional.of(service(1L, 1)));
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service(1L, 1)));
 
         assertThrows(
                 BusinessRuleException.class,
@@ -163,7 +163,7 @@ class AvailabilityServiceTest {
 
     @Test
     void shouldRejectAvailabilityWhenBarberIdsMissingForAnyMode() {
-        when(serviceCatalogRepository.findById(1L)).thenReturn(Optional.of(service(1L, 1)));
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service(1L, 1)));
 
         assertThrows(
                 BusinessRuleException.class,
@@ -174,7 +174,7 @@ class AvailabilityServiceTest {
     @Test
     void shouldRejectIncompetentBarberForSpecificAvailability() {
         LocalDate date = LocalDate.of(2026, 6, 10);
-        when(serviceCatalogRepository.findById(1L)).thenReturn(Optional.of(service(1L, 1)));
+        when(serviceRepository.findById(1L)).thenReturn(Optional.of(service(1L, 1)));
         when(competencyRepository.existsByServiceId(1L)).thenReturn(true);
         when(competencyRepository.existsByBarberIdAndServiceId(11L, 1L)).thenReturn(false);
 

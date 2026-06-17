@@ -1,8 +1,8 @@
 package com.barber_manager.appointment_service.service;
 
 import com.barber_manager.appointment_service.booking.port.in.IClientPhoneProfileController;
-import com.barber_manager.appointment_service.booking.port.out.IClientPhoneProfileRepository;
-import com.barber_manager.appointment_service.booking.port.out.INoShowIncidentRepository;
+import com.barber_manager.appointment_service.repository.ClientPhoneProfileRepository;
+import com.barber_manager.appointment_service.repository.NoShowIncidentRepository;
 import com.barber_manager.appointment_service.dto.admin.ClientPhoneProfileResponse;
 import com.barber_manager.appointment_service.dto.admin.NoShowIncidentResponse;
 import com.barber_manager.appointment_service.entity.Appointment;
@@ -19,8 +19,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NoShowRegistrationService implements IClientPhoneProfileController {
 
-    private final IClientPhoneProfileRepository clientPhoneProfileRepository;
-    private final INoShowIncidentRepository noShowIncidentRepository;
+    private final ClientPhoneProfileRepository clientPhoneProfileRepository;
+    private final NoShowIncidentRepository noShowIncidentRepository;
     private final ClientBlockService clientBlockService;
 
     @Override

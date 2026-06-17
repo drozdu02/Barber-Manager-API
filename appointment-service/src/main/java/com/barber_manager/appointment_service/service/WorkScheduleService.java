@@ -1,7 +1,10 @@
 package com.barber_manager.appointment_service.service;
 
-import com.barber_manager.appointment_service.booking.port.out.IAppointmentRepository;
-import com.barber_manager.appointment_service.dto.admin.CreateBreakRequest;
+import com.barber_manager.appointment_service.repository.AppointmentRepository;
+import com.barber_manager.appointment_service.repository.BarberBreakRepository;
+import com.barber_manager.appointment_service.repository.BarberTimeOffRepository;
+import com.barber_manager.appointment_service.repository.BarberWorkScheduleRepository;
+import com.barber_manager.appointment_service.schedule.port.in.IWorkScheduleController;
 import com.barber_manager.appointment_service.dto.admin.CreateTimeOffRequest;
 import com.barber_manager.appointment_service.dto.admin.CreateWorkScheduleRequest;
 import com.barber_manager.appointment_service.dto.admin.ReplaceWorkScheduleRequest;
@@ -14,10 +17,7 @@ import com.barber_manager.appointment_service.entity.BarberTimeOff;
 import com.barber_manager.appointment_service.entity.BarberWorkSchedule;
 import com.barber_manager.appointment_service.exception.BusinessRuleException;
 import com.barber_manager.appointment_service.exception.NotFoundException;
-import com.barber_manager.appointment_service.schedule.port.in.IWorkScheduleController;
-import com.barber_manager.appointment_service.schedule.port.out.IBarberBreakRepository;
-import com.barber_manager.appointment_service.schedule.port.out.IBarberTimeOffRepository;
-import com.barber_manager.appointment_service.schedule.port.out.IWorkScheduleRepository;
+import com.barber_manager.appointment_service.dto.admin.CreateBreakRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,10 +34,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class WorkScheduleService implements IWorkScheduleController {
 
-    private final IWorkScheduleRepository workScheduleRepository;
-    private final IBarberTimeOffRepository timeOffRepository;
-    private final IBarberBreakRepository barberBreakRepository;
-    private final IAppointmentRepository appointmentRepository;
+    private final BarberWorkScheduleRepository workScheduleRepository;
+    private final BarberTimeOffRepository timeOffRepository;
+    private final BarberBreakRepository barberBreakRepository;
+    private final AppointmentRepository appointmentRepository;
 
     @Override
     public List<WorkScheduleResponse> listWorkSchedules(Long barberId) {
