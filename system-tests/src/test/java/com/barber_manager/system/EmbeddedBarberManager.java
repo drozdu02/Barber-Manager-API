@@ -95,8 +95,8 @@ public final class EmbeddedBarberManager implements AutoCloseable {
                         "spring.application.name=appointment-service",
                         "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://localhost:"
                                 + authPort + "/.well-known/jwks.json",
-                        "email.username=system-test@example.com",
-                        "email.password=system-test-password",
+                        "spring.mail.username=system-test@example.com",
+                        "spring.mail.password=system-test-password",
                         "appointment.reminder.enabled=false"
                 )
                 .run();

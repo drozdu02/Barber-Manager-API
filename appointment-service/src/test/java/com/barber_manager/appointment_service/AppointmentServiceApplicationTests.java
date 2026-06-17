@@ -18,8 +18,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
         "spring.config.import=",
         "eureka.client.enabled=false",
         "appointment.reminder.enabled=false",
-        "email.username=test@example.com",
-        "email.password=test-password",
+        "spring.mail.username=test@example.com",
+        "spring.mail.password=test-password",
         "spring.autoconfigure.exclude=org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration"
 })
 class AppointmentServiceApplicationTests {
