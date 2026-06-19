@@ -10,10 +10,6 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 public class AppointmentCanceledPolicy {
 
-    /**
-     * Slots become available again because the appointment aggregate is marked canceled
-     * before this event is published (overlap queries exclude canceled appointments).
-     */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onAppointmentCanceled(AppointmentCanceledEvent event) {
         log.info(

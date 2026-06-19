@@ -30,9 +30,6 @@ public class Service {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
-    /**
-     * Duration expressed as number of slots (e.g. 1 slot = 30 minutes).
-     */
     @NotNull
     @Min(1)
     @Column(nullable = false)
